@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: MPL-2.0
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+# Network administration authority is governed separately; see GOVERNANCE.md.
+
 """SLEIGH-compatible parser. Handles a documented public subset:
    define endian, define space, define register, define token, define context,
    macro definitions, and constructor lines of the form
