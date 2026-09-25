@@ -1,0 +1,122 @@
+// ============================================================
+// TRITON-SLED
+// sled/ast.sled
+// ============================================================
+
+module ast
+
+import core
+import token
+
+enum PrimitiveType {
+    StringType,
+    IntType,
+    BoolType,
+    GraphType,
+    StateType,
+    UnitType
+}
+
+type TypeRef =
+    Primitive(PrimitiveType)
+    | Named(String)
+    | ListOf(TypeRef)
+    | Optional(TypeRef)
+
+type Literal =
+    StringValue(String)
+    | IntValue(Int)
+    | BoolValue(Bool)
+
+type Expr =
+    LiteralExpr(Literal)
+    | NameExpr(String)
+    | ListExpr(List<Expr>)
+    | CallExpr(String,List<Expr>)
+
+type Field = {
+    name: String,
+    value: Expr
+}
+
+type RecordExpr = {
+    name: String,
+    fields: List<Field>
+}
+
+type GraphEdge = {
+    source: String,
+    relation: String,
+    target: String
+}
+
+type MapRule = {
+    source: String,
+    target: String
+}
+
+type InvertRule = {
+    parent: String,
+    child: String
+}
+
+type DefineBlock = {
+    name: String,
+    values: List<String>
+}
+
+type SystemDecl = {
+    name: String
+}
+
+type LanguageDecl = {
+    name: String
+}
+
+type ModeDecl = {
+    name: String
+}
+
+type SourceDecl = {
+    name: String
+}
+
+type TransformDecl = {
+    name: String
+}
+
+type TreeDecl = {
+    name: String
+}
+
+type OutputDecl = {
+    name: String
+}
+
+type EmitDecl = {
+    values: List<String>
+}
+
+type Statement =
+    SystemStatement(SystemDecl)
+    | LanguageStatement(LanguageDecl)
+    | ModeStatement(ModeDecl)
+    | SourceStatement(SourceDecl)
+    | TransformStatement(TransformDecl)
+    | TreeStatement(TreeDecl)
+    | OutputStatement(OutputDecl)
+    | DefineStatement(DefineBlock)
+    | MapStatement(MapRule)
+    | InvertStatement(InvertRule)
+    | EmitStatement(EmitDecl)
+    | EndSystemStatement
+
+type Program = {
+    statements: List<Statement>
+}
+
+fn program(statements: List<Statement>) -> Program {
+    Program {
+        statements: statements
+    }
+}

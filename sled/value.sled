@@ -1,0 +1,58 @@
+// ============================================================
+// TRITON-SLED
+// sled/value.sled
+// ============================================================
+
+module value
+
+import core
+
+type Value =
+    VString(String)
+    | VInt(Int)
+    | VBool(Bool)
+    | VList(List<Value>)
+    | VObject(Map<String,Value>)
+    | VNull
+
+fn value_string(v: Value) -> String {
+    match v {
+        VString(x) => x,
+        VInt(x) => int_to_string(x),
+        VBool(True) => "true",
+        VBool(False) => "false",
+        VList(_) => "[list]",
+        VObject(_) => "{object}",
+        VNull => "null"
+    }
+}
+
+fn value_equal(a: Value,b: Value) -> Bool {
+    match a {
+        VString(x) =>
+            match b {
+                VString(y) => string_equal(x,y),
+                _ => False
+            },
+
+        VInt(x) =>
+            match b {
+                VInt(y) => x == y,
+                _ => False
+            },
+
+        VBool(x) =>
+            match b {
+                VBool(y) => x == y,
+                _ => False
+            },
+
+        VNull =>
+            match b {
+                VNull => True,
+                _ => False
+            },
+
+        _ => False
+    }
+}

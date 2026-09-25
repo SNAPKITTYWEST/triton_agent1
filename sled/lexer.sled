@@ -1,0 +1,452 @@
+// ============================================================
+// TRITON-SLED
+// sled/lexer.sled
+// ============================================================
+
+module lexer
+
+import core
+import token
+
+type Lexer = {
+    source: String,
+    offset: Int,
+    line: Int,
+    column: Int
+}
+
+fn lexer(source: String) -> Lexer {
+    Lexer {
+        source: source,
+        offset: 0,
+        line: 1,
+        column: 1
+    }
+}
+
+fn lexer_position(lx: Lexer) -> Position {
+    position(lx.offset,lx.line,lx.column)
+}
+
+fn lexer_done(lx: Lexer) -> Bool {
+    lx.offset >= string_length(lx.source)
+}
+
+fn lexer_peek(lx: Lexer) -> Option<Char> {
+    match lexer_done(lx) {
+        True => None,
+        False => Some(string_char_at(lx.source,lx.offset))
+    }
+}
+
+fn lexer_peek_next(lx: Lexer) -> Option<Char> {
+    let n = lx.offset + 1
+
+    match n >= string_length(lx.source) {
+        True => None,
+        False => Some(string_char_at(lx.source,n))
+    }
+}
+
+fn lexer_advance(lx: Lexer) -> Lexer {
+    match lexer_peek(lx) {
+        None => lx,
+
+        Some(c) =>
+            match char_equal(c,'\n') {
+                True =>
+                    Lexer {
+                        source: lx.source,
+                        offset: lx.offset + 1,
+                        line: lx.line + 1,
+                        column: 1
+                    },
+
+                False =>
+                    Lexer {
+                        source: lx.source,
+                        offset: lx.offset + 1,
+                        line: lx.line,
+                        column: lx.column + 1
+                    }
+            }
+    }
+}
+
+fn is_space(c: Char) -> Bool {
+    char_equal(c,' ') ||
+    char_equal(c,'\t') ||
+    char_equal(c,'\r')
+}
+
+fn is_digit(c: Char) -> Bool {
+    c >= '0' && c <= '9'
+}
+
+fn is_alpha(c: Char) -> Bool {
+    (c >= 'a' && c <= 'z') ||
+    (c >= 'A' && c <= 'Z') ||
+    char_equal(c,'_')
+}
+
+fn is_ident_continue(c: Char) -> Bool {
+    is_alpha(c) ||
+    is_digit(c) ||
+    char_equal(c,'-')
+}
+
+fn skip_spaces(lx: Lexer) -> Lexer {
+    match lexer_peek(lx) {
+        Some(c) =>
+            match is_space(c) {
+                True => skip_spaces(lexer_advance(lx)),
+                False => lx
+            },
+
+        None => lx
+    }
+}
+
+fn scan_while(
+    lx: Lexer,
+    predicate: Fn(Char)->Bool
+) -> Lexer {
+    match lexer_peek(lx) {
+        None => lx,
+
+        Some(c) =>
+            match predicate(c) {
+                True =>
+                    scan_while(
+                        lexer_advance(lx),
+                        predicate
+                    ),
+
+                False => lx
+            }
+    }
+}
+
+fn keyword_kind(text: String) -> TokenKind {
+    match text {
+        "module" => KwModule,
+        "import" => KwImport,
+        "type" => KwType,
+        "enum" => KwEnum,
+        "fn" => KwFn,
+        "let" => KwLet,
+        "match" => KwMatch,
+        "true" => KwTrue,
+        "false" => KwFalse,
+
+        "SYSTEM" => KwSystem,
+        "LANGUAGE" => KwLanguage,
+        "MODE" => KwMode,
+        "SOURCE" => KwSource,
+        "TRANSFORM" => KwTransform,
+        "TREE" => KwTree,
+        "OUTPUT" => KwOutput,
+        "DEFINE" => KwDefine,
+        "MAP" => KwMap,
+        "TO" => KwTo,
+        "INVERT" => KwInvert,
+        "CONTAINS" => KwContains,
+        "EMIT" => KwEmit,
+        "END" => KwEnd,
+
+        _ => Identifier
+    }
+}
+
+fn scan_identifier(lx: Lexer) -> Pair<Lexer,Token> {
+    let start = lexer_position(lx)
+    let finish_lx = scan_while(lx,is_ident_continue)
+    let finish = lexer_position(finish_lx)
+
+    let text = string_slice(
+        lx.source,
+        start.offset,
+        finish.offset
+    )
+
+    Pair {
+        first: finish_lx,
+        second: token(
+            keyword_kind(text),
+            text,
+            start,
+            finish
+        )
+    }
+}
+
+fn scan_integer(lx: Lexer) -> Pair<Lexer,Token> {
+    let start = lexer_position(lx)
+    let finish_lx = scan_while(lx,is_digit)
+    let finish = lexer_position(finish_lx)
+
+    let text = string_slice(
+        lx.source,
+        start.offset,
+        finish.offset
+    )
+
+    Pair {
+        first: finish_lx,
+        second: token(
+            Integer,
+            text,
+            start,
+            finish
+        )
+    }
+}
+
+fn scan_string_body(
+    lx: Lexer,
+    start: Position
+) -> Result<Pair<Lexer,Token>,Error> {
+
+    match lexer_peek(lx) {
+
+        None =>
+            Err(Error {
+                code: "LEX_UNTERMINATED_STRING",
+                message: "unterminated string literal",
+                context: int_to_string(start.line)
+            }),
+
+        Some('"') =>
+            let end_lx = lexer_advance(lx)
+            let finish = lexer_position(end_lx)
+
+            let text = string_slice(
+                lx.source,
+                start.offset + 1,
+                lx.offset
+            )
+
+            Ok(Pair {
+                first: end_lx,
+                second: token(
+                    StringLiteral,
+                    text,
+                    start,
+                    finish
+                )
+            }),
+
+        Some(_) =>
+            scan_string_body(
+                lexer_advance(lx),
+                start
+            )
+    }
+}
+
+fn scan_string(lx: Lexer)
+    -> Result<Pair<Lexer,Token>,Error> {
+
+    let start = lexer_position(lx)
+
+    scan_string_body(
+        lexer_advance(lx),
+        start
+    )
+}
+
+fn single_token(
+    lx: Lexer,
+    kind: TokenKind
+) -> Pair<Lexer,Token> {
+
+    let start = lexer_position(lx)
+    let next = lexer_advance(lx)
+
+    Pair {
+        first: next,
+        second: token(
+            kind,
+            string_slice(
+                lx.source,
+                start.offset,
+                next.offset
+            ),
+            start,
+            lexer_position(next)
+        )
+    }
+}
+
+fn scan_token(lx0: Lexer)
+    -> Result<Pair<Lexer,Token>,Error> {
+
+    let lx = skip_spaces(lx0)
+
+    match lexer_peek(lx) {
+
+        None =>
+            Ok(Pair {
+                first: lx,
+                second: token(
+                    EndOfFile,
+                    "",
+                    lexer_position(lx),
+                    lexer_position(lx)
+                )
+            }),
+
+        Some('\n') =>
+            Ok(single_token(lx,Newline)),
+
+        Some('(') =>
+            Ok(single_token(lx,LeftParen)),
+
+        Some(')') =>
+            Ok(single_token(lx,RightParen)),
+
+        Some('{') =>
+            Ok(single_token(lx,LeftBrace)),
+
+        Some('}') =>
+            Ok(single_token(lx,RightBrace)),
+
+        Some('[') =>
+            Ok(single_token(lx,LeftBracket)),
+
+        Some(']') =>
+            Ok(single_token(lx,RightBracket)),
+
+        Some(':') =>
+            Ok(single_token(lx,Colon)),
+
+        Some(',') =>
+            Ok(single_token(lx,Comma)),
+
+        Some('.') =>
+            Ok(single_token(lx,Dot)),
+
+        Some('=') =>
+            Ok(single_token(lx,Equal)),
+
+        Some('+') =>
+            Ok(single_token(lx,Plus)),
+
+        Some('*') =>
+            Ok(single_token(lx,Star)),
+
+        Some('/') =>
+            Ok(single_token(lx,Slash)),
+
+        Some('"') =>
+            scan_string(lx),
+
+        Some('-') =>
+            match lexer_peek_next(lx) {
+
+                Some('>') =>
+                    let a = lexer_position(lx)
+                    let lx1 = lexer_advance(lx)
+                    let lx2 = lexer_advance(lx1)
+
+                    Ok(Pair {
+                        first: lx2,
+                        second: token(
+                            Arrow,
+                            "->",
+                            a,
+                            lexer_position(lx2)
+                        )
+                    }),
+
+                _ =>
+                    Ok(single_token(lx,Minus))
+            },
+
+        Some('<') =>
+            match lexer_peek_next(lx) {
+
+                Some('-') =>
+                    let a = lexer_position(lx)
+                    let lx1 = lexer_advance(lx)
+                    let lx2 = lexer_advance(lx1)
+
+                    Ok(Pair {
+                        first: lx2,
+                        second: token(
+                            ReverseArrow,
+                            "<-",
+                            a,
+                            lexer_position(lx2)
+                        )
+                    }),
+
+                _ =>
+                    Ok(single_token(lx,LeftAngle))
+            },
+
+        Some('>') =>
+            Ok(single_token(lx,RightAngle)),
+
+        Some(c) =>
+            match is_alpha(c) {
+                True =>
+                    Ok(scan_identifier(lx)),
+
+                False =>
+                    match is_digit(c) {
+                        True =>
+                            Ok(scan_integer(lx)),
+
+                        False =>
+                            Err(Error {
+                                code: "LEX_INVALID_CHARACTER",
+                                message:
+                                    string_concat(
+                                        "invalid character: ",
+                                        char_to_string(c)
+                                    ),
+                                context:
+                                    int_to_string(lx.line)
+                            })
+                    }
+            }
+    }
+}
+
+fn lex_loop(
+    lx: Lexer,
+    acc: List<Token>
+) -> Result<List<Token>,Error> {
+
+    match scan_token(lx) {
+
+        Err(e) => Err(e),
+
+        Ok(pair) =>
+            match pair.second.kind {
+
+                EndOfFile =>
+                    Ok(
+                        list_reverse(
+                            Cons(pair.second,acc)
+                        )
+                    ),
+
+                _ =>
+                    lex_loop(
+                        pair.first,
+                        Cons(pair.second,acc)
+                    )
+            }
+    }
+}
+
+fn lex(source: String)
+    -> Result<List<Token>,Error> {
+
+    lex_loop(
+        lexer(source),
+        Nil
+    )
+}

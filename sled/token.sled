@@ -1,0 +1,112 @@
+// ============================================================
+// TRITON-SLED
+// sled/token.sled
+// ============================================================
+
+module token
+
+import core
+
+enum TokenKind {
+    Identifier,
+    Integer,
+    StringLiteral,
+
+    KwModule,
+    KwImport,
+    KwType,
+    KwEnum,
+    KwFn,
+    KwLet,
+    KwMatch,
+    KwTrue,
+    KwFalse,
+    KwSystem,
+    KwLanguage,
+    KwMode,
+    KwSource,
+    KwTransform,
+    KwTree,
+    KwOutput,
+    KwDefine,
+    KwMap,
+    KwTo,
+    KwInvert,
+    KwContains,
+    KwEmit,
+    KwEnd,
+
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftAngle,
+    RightAngle,
+    LeftBracket,
+    RightBracket,
+    Colon,
+    Comma,
+    Dot,
+    Arrow,
+    ReverseArrow,
+    Equal,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+
+    Newline,
+    EndOfFile
+}
+
+type Position = {
+    offset: Int,
+    line: Int,
+    column: Int
+}
+
+type Span = {
+    start: Position,
+    finish: Position
+}
+
+type Token = {
+    kind: TokenKind,
+    lexeme: String,
+    span: Span
+}
+
+fn position(
+    offset: Int,
+    line: Int,
+    column: Int
+) -> Position {
+    Position {
+        offset: offset,
+        line: line,
+        column: column
+    }
+}
+
+fn span(
+    start: Position,
+    finish: Position
+) -> Span {
+    Span {
+        start: start,
+        finish: finish
+    }
+}
+
+fn token(
+    kind: TokenKind,
+    lexeme: String,
+    start: Position,
+    finish: Position
+) -> Token {
+    Token {
+        kind: kind,
+        lexeme: lexeme,
+        span: span(start,finish)
+    }
+}

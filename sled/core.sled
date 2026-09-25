@@ -1,0 +1,164 @@
+// ============================================================
+// TRITON-SLED
+// sled/core.sled
+// ============================================================
+
+module core
+
+type Bool =
+    False
+    | True
+
+type Option<T> =
+    None
+    | Some(T)
+
+type Result<T,E> =
+    Ok(T)
+    | Err(E)
+
+type Pair<A,B> = {
+    first: A,
+    second: B
+}
+
+type List<T> =
+    Nil
+    | Cons(T,List<T>)
+
+type Map<K,V> = {
+    entries: List<Pair<K,V>>
+}
+
+type Set<T> = {
+    values: List<T>
+}
+
+type Error = {
+    code: String,
+    message: String,
+    context: String
+}
+
+fn bool_not(x: Bool) -> Bool {
+    match x {
+        True => False,
+        False => True
+    }
+}
+
+fn bool_and(a: Bool,b: Bool) -> Bool {
+    match a {
+        False => False,
+        True => b
+    }
+}
+
+fn bool_or(a: Bool,b: Bool) -> Bool {
+    match a {
+        True => True,
+        False => b
+    }
+}
+
+fn list_length<T>(xs: List<T>) -> Int {
+    match xs {
+        Nil => 0,
+        Cons(_,rest) => 1 + list_length(rest)
+    }
+}
+
+fn list_reverse_into<T>(
+    xs: List<T>,
+    acc: List<T>
+) -> List<T> {
+    match xs {
+        Nil => acc,
+        Cons(x,rest) =>
+            list_reverse_into(rest,Cons(x,acc))
+    }
+}
+
+fn list_reverse<T>(xs: List<T>) -> List<T> {
+    list_reverse_into(xs,Nil)
+}
+
+fn list_append<T>(
+    left: List<T>,
+    right: List<T>
+) -> List<T> {
+    match left {
+        Nil => right,
+        Cons(x,rest) =>
+            Cons(x,list_append(rest,right))
+    }
+}
+
+fn list_map<A,B>(
+    xs: List<A>,
+    f: Fn(A)->B
+) -> List<B> {
+    match xs {
+        Nil => Nil,
+        Cons(x,rest) =>
+            Cons(f(x),list_map(rest,f))
+    }
+}
+
+fn list_filter<T>(
+    xs: List<T>,
+    f: Fn(T)->Bool
+) -> List<T> {
+    match xs {
+        Nil => Nil,
+        Cons(x,rest) =>
+            match f(x) {
+                True =>
+                    Cons(x,list_filter(rest,f)),
+                False =>
+                    list_filter(rest,f)
+            }
+    }
+}
+
+fn list_fold<A,B>(
+    xs: List<A>,
+    init: B,
+    f: Fn(B,A)->B
+) -> B {
+    match xs {
+        Nil => init,
+        Cons(x,rest) =>
+            list_fold(rest,f(init,x),f)
+    }
+}
+
+fn option_map<A,B>(
+    value: Option<A>,
+    f: Fn(A)->B
+) -> Option<B> {
+    match value {
+        None => None,
+        Some(x) => Some(f(x))
+    }
+}
+
+fn result_map<A,B,E>(
+    value: Result<A,E>,
+    f: Fn(A)->B
+) -> Result<B,E> {
+    match value {
+        Ok(x) => Ok(f(x)),
+        Err(e) => Err(e)
+    }
+}
+
+fn result_bind<A,B,E>(
+    value: Result<A,E>,
+    f: Fn(A)->Result<B,E>
+) -> Result<B,E> {
+    match value {
+        Ok(x) => f(x),
+        Err(e) => Err(e)
+    }
+}

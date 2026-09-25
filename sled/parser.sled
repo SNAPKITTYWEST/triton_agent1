@@ -1,0 +1,732 @@
+// ============================================================
+// TRITON-SLED
+// sled/parser.sled
+// ============================================================
+
+module parser
+
+import core
+import token
+import ast
+
+type Parser = {
+    tokens: List<Token>,
+    index: Int
+}
+
+fn parser(tokens: List<Token>) -> Parser {
+    Parser {
+        tokens: tokens,
+        index: 0
+    }
+}
+
+fn parser_token_at(
+    tokens: List<Token>,
+    wanted: Int,
+    current: Int
+) -> Option<Token> {
+
+    match tokens {
+
+        Nil => None,
+
+        Cons(head,tail) =>
+            match wanted == current {
+                True => Some(head),
+                False =>
+                    parser_token_at(
+                        tail,
+                        wanted,
+                        current + 1
+                    )
+            }
+    }
+}
+
+fn parser_peek(p: Parser) -> Option<Token> {
+    parser_token_at(
+        p.tokens,
+        p.index,
+        0
+    )
+}
+
+fn parser_advance(p: Parser) -> Parser {
+    Parser {
+        tokens: p.tokens,
+        index: p.index + 1
+    }
+}
+
+fn parser_skip_newlines(p: Parser) -> Parser {
+    match parser_peek(p) {
+
+        Some(t) =>
+            match t.kind {
+                Newline =>
+                    parser_skip_newlines(
+                        parser_advance(p)
+                    ),
+                _ => p
+            },
+
+        None => p
+    }
+}
+
+fn parser_error(
+    code: String,
+    message: String,
+    p: Parser
+) -> Error {
+
+    match parser_peek(p) {
+
+        Some(t) =>
+            Error {
+                code: code,
+                message: message,
+                context:
+                    string_concat(
+                        int_to_string(t.span.start.line),
+                        string_concat(
+                            ":",
+                            int_to_string(
+                                t.span.start.column
+                            )
+                        )
+                    )
+            },
+
+        None =>
+            Error {
+                code: code,
+                message: message,
+                context: "EOF"
+            }
+    }
+}
+
+fn expect_kind(
+    p: Parser,
+    kind: TokenKind
+) -> Result<Pair<Parser,Token>,Error> {
+
+    match parser_peek(p) {
+
+        None =>
+            Err(
+                parser_error(
+                    "PARSE_EOF",
+                    "unexpected end of input",
+                    p
+                )
+            ),
+
+        Some(t) =>
+            match t.kind == kind {
+
+                True =>
+                    Ok(Pair {
+                        first: parser_advance(p),
+                        second: t
+                    }),
+
+                False =>
+                    Err(
+                        parser_error(
+                            "PARSE_EXPECTED_TOKEN",
+                            string_concat(
+                                "unexpected token: ",
+                                t.lexeme
+                            ),
+                            p
+                        )
+                    )
+            }
+    }
+}
+
+fn parse_name(
+    p: Parser
+) -> Result<Pair<Parser,String>,Error> {
+
+    match parser_peek(p) {
+
+        Some(t) =>
+            match t.kind {
+
+                Identifier =>
+                    Ok(Pair {
+                        first: parser_advance(p),
+                        second: t.lexeme
+                    }),
+
+                _ =>
+                    Err(
+                        parser_error(
+                            "PARSE_EXPECTED_NAME",
+                            "expected identifier",
+                            p
+                        )
+                    )
+            },
+
+        None =>
+            Err(
+                parser_error(
+                    "PARSE_EXPECTED_NAME",
+                    "expected identifier",
+                    p
+                )
+            )
+    }
+}
+
+fn parse_system(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwSystem) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second:
+                            SystemStatement(
+                                SystemDecl {
+                                    name: b.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn parse_language(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwLanguage) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second:
+                            LanguageStatement(
+                                LanguageDecl {
+                                    name: b.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn parse_mode(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwMode) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second:
+                            ModeStatement(
+                                ModeDecl {
+                                    name: b.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn parse_source(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwSource) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second:
+                            SourceStatement(
+                                SourceDecl {
+                                    name: b.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn parse_transform(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwTransform) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second:
+                            TransformStatement(
+                                TransformDecl {
+                                    name: b.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn parse_tree(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwTree) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second:
+                            TreeStatement(
+                                TreeDecl {
+                                    name: b.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn parse_output(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwOutput) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second:
+                            OutputStatement(
+                                OutputDecl {
+                                    name: b.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn collect_names_until_keyword(
+    p: Parser,
+    acc: List<String>
+) -> Pair<Parser,List<String>> {
+
+    let q = parser_skip_newlines(p)
+
+    match parser_peek(q) {
+
+        None =>
+            Pair {
+                first: q,
+                second: list_reverse(acc)
+            },
+
+        Some(t) =>
+            match t.kind {
+
+                Identifier =>
+                    collect_names_until_keyword(
+                        parser_advance(q),
+                        Cons(t.lexeme,acc)
+                    ),
+
+                _ =>
+                    Pair {
+                        first: q,
+                        second: list_reverse(acc)
+                    }
+            }
+    }
+}
+
+fn parse_define(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwDefine) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    let collected =
+                        collect_names_until_keyword(
+                            b.first,
+                            Nil
+                        )
+
+                    Ok(Pair {
+                        first: collected.first,
+                        second:
+                            DefineStatement(
+                                DefineBlock {
+                                    name: b.second,
+                                    values: collected.second
+                                }
+                            )
+                    })
+            }
+    }
+}
+
+fn parse_map(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwMap) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    let q = parser_skip_newlines(b.first)
+
+                    match expect_kind(q,KwTo) {
+
+                        Err(e) => Err(e),
+
+                        Ok(c) =>
+                            let r =
+                                parser_skip_newlines(c.first)
+
+                            match parse_name(r) {
+
+                                Err(e) => Err(e),
+
+                                Ok(d) =>
+                                    Ok(Pair {
+                                        first: d.first,
+                                        second:
+                                            MapStatement(
+                                                MapRule {
+                                                    source: b.second,
+                                                    target: d.second
+                                                }
+                                            )
+                                    })
+                            }
+                    }
+            }
+    }
+}
+
+fn parse_invert(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwInvert) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match parse_name(a.first) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    let q = parser_skip_newlines(b.first)
+
+                    match expect_kind(q,KwContains) {
+
+                        Err(e) => Err(e),
+
+                        Ok(c) =>
+                            let r =
+                                parser_skip_newlines(c.first)
+
+                            match parse_name(r) {
+
+                                Err(e) => Err(e),
+
+                                Ok(d) =>
+                                    Ok(Pair {
+                                        first: d.first,
+                                        second:
+                                            InvertStatement(
+                                                InvertRule {
+                                                    parent: b.second,
+                                                    child: d.second
+                                                }
+                                            )
+                                    })
+                            }
+                    }
+            }
+    }
+}
+
+fn parse_emit(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwEmit) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            let collected =
+                collect_names_until_keyword(
+                    a.first,
+                    Nil
+                )
+
+            Ok(Pair {
+                first: collected.first,
+                second:
+                    EmitStatement(
+                        EmitDecl {
+                            values: collected.second
+                        }
+                    )
+            })
+    }
+}
+
+fn parse_end(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    match expect_kind(p0,KwEnd) {
+
+        Err(e) => Err(e),
+
+        Ok(a) =>
+            match expect_kind(
+                parser_skip_newlines(a.first),
+                KwSystem
+            ) {
+
+                Err(e) => Err(e),
+
+                Ok(b) =>
+                    Ok(Pair {
+                        first: b.first,
+                        second: EndSystemStatement
+                    })
+            }
+    }
+}
+
+fn parse_statement(
+    p0: Parser
+) -> Result<Pair<Parser,Statement>,Error> {
+
+    let p = parser_skip_newlines(p0)
+
+    match parser_peek(p) {
+
+        None =>
+            Err(
+                parser_error(
+                    "PARSE_EOF",
+                    "unexpected EOF",
+                    p
+                )
+            ),
+
+        Some(t) =>
+            match t.kind {
+
+                KwSystem =>
+                    parse_system(p),
+
+                KwLanguage =>
+                    parse_language(p),
+
+                KwMode =>
+                    parse_mode(p),
+
+                KwSource =>
+                    parse_source(p),
+
+                KwTransform =>
+                    parse_transform(p),
+
+                KwTree =>
+                    parse_tree(p),
+
+                KwOutput =>
+                    parse_output(p),
+
+                KwDefine =>
+                    parse_define(p),
+
+                KwMap =>
+                    parse_map(p),
+
+                KwInvert =>
+                    parse_invert(p),
+
+                KwEmit =>
+                    parse_emit(p),
+
+                KwEnd =>
+                    parse_end(p),
+
+                _ =>
+                    Err(
+                        parser_error(
+                            "PARSE_STATEMENT",
+                            string_concat(
+                                "invalid statement: ",
+                                t.lexeme
+                            ),
+                            p
+                        )
+                    )
+            }
+    }
+}
+
+fn parse_program_loop(
+    p0: Parser,
+    acc: List<Statement>
+) -> Result<Pair<Parser,Program>,Error> {
+
+    let p = parser_skip_newlines(p0)
+
+    match parser_peek(p) {
+
+        None =>
+            Ok(Pair {
+                first: p,
+                second:
+                    program(
+                        list_reverse(acc)
+                    )
+            }),
+
+        Some(t) =>
+            match t.kind {
+
+                EndOfFile =>
+                    Ok(Pair {
+                        first: p,
+                        second:
+                            program(
+                                list_reverse(acc)
+                            )
+                    }),
+
+                _ =>
+                    match parse_statement(p) {
+
+                        Err(e) => Err(e),
+
+                        Ok(parsed) =>
+                            match parsed.second {
+
+                                EndSystemStatement =>
+                                    Ok(Pair {
+                                        first: parsed.first,
+                                        second:
+                                            program(
+                                                list_reverse(
+                                                    Cons(
+                                                        parsed.second,
+                                                        acc
+                                                    )
+                                                )
+                                            )
+                                    }),
+
+                                _ =>
+                                    parse_program_loop(
+                                        parsed.first,
+                                        Cons(
+                                            parsed.second,
+                                            acc
+                                        )
+                                    )
+                            }
+                    }
+            }
+    }
+}
+
+fn parse(tokens: List<Token>)
+    -> Result<Program,Error> {
+
+    match parse_program_loop(
+        parser(tokens),
+        Nil
+    ) {
+        Err(e) => Err(e),
+        Ok(result) => Ok(result.second)
+    }
+}

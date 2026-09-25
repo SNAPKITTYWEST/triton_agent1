@@ -1,0 +1,90 @@
+// ============================================================
+// TRITON-SLED
+// sled/state.sled
+// ============================================================
+
+module state
+
+import core
+import value
+import graph
+
+type RuntimeState = {
+    system: Option<String>,
+    language: Option<String>,
+    mode: Option<String>,
+    source: Option<String>,
+    transform: Option<String>,
+    tree: Option<String>,
+    output: Option<String>,
+    definitions: Map<String,Value>,
+    mappings: List<Pair<String,String>>,
+    inversions: List<Pair<String,String>>,
+    emissions: List<String>,
+    graph: Graph,
+    halted: Bool
+}
+
+fn empty_state() -> RuntimeState {
+    RuntimeState {
+        system: None,
+        language: None,
+        mode: None,
+        source: None,
+        transform: None,
+        tree: None,
+        output: None,
+        definitions: Map { entries: Nil },
+        mappings: Nil,
+        inversions: Nil,
+        emissions: Nil,
+        graph: empty_graph(),
+        halted: False
+    }
+}
+
+fn map_put(
+    map: Map<String,Value>,
+    key: String,
+    value: Value
+) -> Map<String,Value> {
+
+    Map {
+        entries:
+            Cons(
+                Pair {
+                    first: key,
+                    second: value
+                },
+                map.entries
+            )
+    }
+}
+
+fn define_value(
+    state: RuntimeState,
+    key: String,
+    value: Value
+) -> RuntimeState {
+
+    RuntimeState {
+        system: state.system,
+        language: state.language,
+        mode: state.mode,
+        source: state.source,
+        transform: state.transform,
+        tree: state.tree,
+        output: state.output,
+        definitions:
+            map_put(
+                state.definitions,
+                key,
+                value
+            ),
+        mappings: state.mappings,
+        inversions: state.inversions,
+        emissions: state.emissions,
+        graph: state.graph,
+        halted: state.halted
+    }
+}

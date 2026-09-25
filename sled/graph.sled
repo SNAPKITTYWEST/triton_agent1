@@ -1,0 +1,163 @@
+// ============================================================
+// TRITON-SLED
+// sled/graph.sled
+// ============================================================
+
+module graph
+
+import core
+import value
+
+type Node = {
+    id: String,
+    kind: String,
+    properties: Map<String,Value>
+}
+
+type Edge = {
+    id: String,
+    source: String,
+    relation: String,
+    target: String,
+    properties: Map<String,Value>
+}
+
+type Graph = {
+    nodes: List<Node>,
+    edges: List<Edge>
+}
+
+fn empty_graph() -> Graph {
+    Graph {
+        nodes: Nil,
+        edges: Nil
+    }
+}
+
+fn node_exists(
+    nodes: List<Node>,
+    id: String
+) -> Bool {
+
+    match nodes {
+
+        Nil => False,
+
+        Cons(n,rest) =>
+            match string_equal(n.id,id) {
+                True => True,
+                False =>
+                    node_exists(rest,id)
+            }
+    }
+}
+
+fn edge_exists(
+    edges: List<Edge>,
+    id: String
+) -> Bool {
+
+    match edges {
+
+        Nil => False,
+
+        Cons(e,rest) =>
+            match string_equal(e.id,id) {
+                True => True,
+                False =>
+                    edge_exists(rest,id)
+            }
+    }
+}
+
+fn graph_add_node(
+    graph: Graph,
+    node: Node
+) -> Result<Graph,Error> {
+
+    match node_exists(graph.nodes,node.id) {
+
+        True =>
+            Err(Error {
+                code: "GRAPH_DUPLICATE_NODE",
+                message:
+                    string_concat(
+                        "duplicate node: ",
+                        node.id
+                    ),
+                context: node.kind
+            }),
+
+        False =>
+            Ok(Graph {
+                nodes: Cons(node,graph.nodes),
+                edges: graph.edges
+            })
+    }
+}
+
+fn graph_add_edge(
+    graph: Graph,
+    edge: Edge
+) -> Result<Graph,Error> {
+
+    match edge_exists(graph.edges,edge.id) {
+
+        True =>
+            Err(Error {
+                code: "GRAPH_DUPLICATE_EDGE",
+                message:
+                    string_concat(
+                        "duplicate edge: ",
+                        edge.id
+                    ),
+                context: edge.relation
+            }),
+
+        False =>
+            match node_exists(
+                graph.nodes,
+                edge.source
+            ) {
+
+                False =>
+                    Err(Error {
+                        code: "GRAPH_SOURCE_MISSING",
+                        message:
+                            string_concat(
+                                "missing source: ",
+                                edge.source
+                            ),
+                        context: edge.id
+                    }),
+
+                True =>
+                    match node_exists(
+                        graph.nodes,
+                        edge.target
+                    ) {
+
+                        False =>
+                            Err(Error {
+                                code: "GRAPH_TARGET_MISSING",
+                                message:
+                                    string_concat(
+                                        "missing target: ",
+                                        edge.target
+                                    ),
+                                context: edge.id
+                            }),
+
+                        True =>
+                            Ok(Graph {
+                                nodes: graph.nodes,
+                                edges:
+                                    Cons(
+                                        edge,
+                                        graph.edges
+                                    )
+                            })
+                    }
+            }
+    }
+}
