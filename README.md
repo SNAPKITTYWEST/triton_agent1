@@ -17,7 +17,7 @@
 [![Release](https://img.shields.io/github/v/release/SNAPKITTYWEST/triton_agent1)](https://github.com/SNAPKITTYWEST/triton_agent1/releases)
 [![Status: Executable%20Core](https://img.shields.io/badge/Status-Executable%20Core-16a34a.svg)](run_tests.py)
 
-<sub>authors · <b>ahmedparr93@gmail.com</b> · <b>SNAPKITTYWEST</b></sub>
+<sub>BEL ESPRIT D’ACCORD · <a href="mailto:a.parr@belespritdaccord.uk">a.parr@belespritdaccord.uk</a> · MPL-2.0 copyleft</sub>
 
 </div>
 
@@ -37,6 +37,22 @@ complete production compiler or an untrusted-code sandbox.
 | GPU | Single-operation i32 Triton/PTX source generation | No device validation in CI |
 | SLED/TLA+ | Original research artifacts preserved | No runtime or verified proof supplied |
 | Governance | MPL notices and Trust charter preserved | No network authorization service |
+
+## A practical starting point
+
+If you want to inspect instruction bytes, start with the decode example below.
+If you want to try the execution model, run the Forth example; it returns a
+small, readable result without a GPU. If you want generated kernel source, use
+the single-operation assembly example and inspect the output before integration.
+The C executable helps explore lexer diagnostics and IR construction; its
+demonstration IR is fixed and is not compiled from your input program.
+
+For installation help, release questions, or copyleft notices, contact
+[a.parr@belespritdaccord.uk](mailto:a.parr@belespritdaccord.uk).
+For reproducible defects, open a GitHub issue with the release version, operating
+system, command, minimal input, expected result, and actual result. Remove private
+data before posting. Contributor details are listed at the end of this guide and
+in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## Table of contents
 
@@ -762,8 +778,9 @@ They do not certify compatibility or verification of this implementation.
 
 | Author | Contact |
 |---|---|
-| **Ahmad Ali Parr** | `ahmedparr93@gmail.com` |
-| **SNAPKITTYWEST** | Sovereign Kernel Project |
+| **Project contact — BEL ESPRIT D’ACCORD** | [a.parr@belespritdaccord.uk](mailto:a.parr@belespritdaccord.uk) |
+| **Contributor — Ahmad Ali Parr** | [ahmedparr@icloud.com](mailto:ahmedparr@icloud.com) |
+| **Contributor — SNAPKITTYWEST** | [ahmedparr93@gmail.com](mailto:ahmedparr93@gmail.com) |
 
 <sub>© 2026 the Trust · Licensed under MPL-2.0 · Network authority governed separately, see GOVERNANCE.md</sub>
 

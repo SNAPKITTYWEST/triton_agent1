@@ -16,7 +16,7 @@ artifacts=root/"artifacts";artifacts.mkdir(exist_ok=True)
 binary=next((p for p in [root/"build/Release/triton-agent1.exe",root/"build/triton-agent1.exe",root/"build/triton-agent1"] if p.exists()),None)
 if binary is None: raise SystemExit("Build the C executable first")
 name=f"triton-agent1-0.2.0-{platform.system().lower()}-{platform.machine().lower()}.zip"
-files=[binary,root/"include/triton_agent1.h",root/"LICENSE",root/"GOVERNANCE.md",root/"README.md"]
+files=[binary,root/"include/triton_agent1.h",root/"LICENSE",root/"GOVERNANCE.md",root/"README.md",root/"CONTRIBUTORS.md",root/"CHANGELOG.md"]
 commit=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
 manifest={"version":"0.2.0","commit":commit,"platform":platform.platform(),"sha256":{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}}
 with zipfile.ZipFile(artifacts/name,"w",zipfile.ZIP_DEFLATED) as output:

@@ -10,9 +10,18 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MPL-2.0"
 license-files = ["LICENSE", "GOVERNANCE.md"]
-authors = [{name = "BEL ESPRIT D'ACCORD Trust"}]
+authors = [
+  {name = "BEL ESPRIT D'ACCORD", email = "a.parr@belespritdaccord.uk"},
+  {name = "Ahmad Ali Parr", email = "ahmedparr@icloud.com"},
+  {name = "SNAPKITTYWEST", email = "ahmedparr93@gmail.com"},
+]
+maintainers = [{name = "BEL ESPRIT D'ACCORD", email = "a.parr@belespritdaccord.uk"}]
+keywords = ["machine-semantics", "pcode", "sleigh", "compiler", "copyleft"]
 dependencies = []
 [project.urls]
+Documentation = "https://github.com/SNAPKITTYWEST/triton_agent1#readme"
+Releases = "https://github.com/SNAPKITTYWEST/triton_agent1/releases"
+Contact = "mailto:a.parr@belespritdaccord.uk"
 Repository = "https://github.com/SNAPKITTYWEST/triton_agent1"
 Issues = "https://github.com/SNAPKITTYWEST/triton_agent1/issues"
 [project.scripts]
