@@ -10,4 +10,4 @@ Pipeline: source specifications (SLEIGH / SLED / SSL-RTL / assembly /
 microcode / Forth / OISC) -> tokens/AST -> P-code -> unified Machine IR
 -> normalized IR -> data-parallel Triton/PTX lowering.
 """
-__version__ = "0.1.0"
+__version__ = "0.2.0"

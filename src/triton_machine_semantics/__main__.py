@@ -4,12 +4,5 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 # Network administration authority is governed separately; see GOVERNANCE.md.
-"""Compatibility test entry point; failures propagate to the shell."""
-import sys
-import unittest
-from pathlib import Path
-root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/"src"))
-suite=unittest.defaultTestLoader.discover(str(root/"tests"))
-result=unittest.TextTestRunner(verbosity=2).run(suite)
-raise SystemExit(not result.wasSuccessful())
+from .cli import main
+raise SystemExit(main())

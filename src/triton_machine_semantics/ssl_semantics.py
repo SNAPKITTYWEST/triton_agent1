@@ -5,7 +5,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 # Network administration authority is governed separately; see GOVERNANCE.md.
 
-""SSL-style semantic descriptions: parse RTL-like assignments into effect lists.
+"""SSL-style semantic descriptions: parse RTL-like assignments into effect lists.
 Publicly reconstructable subset based on UQBT RTL model: location := expression.
 """
 from __future__ import annotations

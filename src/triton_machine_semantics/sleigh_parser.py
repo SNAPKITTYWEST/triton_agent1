@@ -91,7 +91,7 @@ def parse_sleigh(text: str) -> ProcessorSpec:
         for tok in names.split():
             tok=tok.strip().strip(',')
             if not tok or tok=='_':
-                cur += 1
+                cur += size
                 continue
             spec.registers[tok] = RegisterDef(name=tok, offset=cur, size=size)
             cur += size
@@ -105,6 +105,7 @@ def parse_sleigh(text: str) -> ProcessorSpec:
         fbody = buf[start+1:end] if start!=-1 and end!=-1 else ""
         # token fields may also appear as separate "define field" lines; support both
         tdef = TokenDef(name=tname, bits=bits, fields=_parse_fields(fbody))
+        if bits<1 or bits>64 or any(max(f.msb,f.lsb)>=bits for f in tdef.fields): raise ValueError("invalid token field width")
         spec.tokens[tname] = tdef
 
     for m in _re_context.finditer(buf):
@@ -120,6 +121,7 @@ def parse_sleigh(text: str) -> ProcessorSpec:
             elif c=='}': depth-=1
             if depth>0: body+=c
             i+=1
+        if depth: raise ValueError("unterminated macro")
         spec.macros[name]=MacroDef(name=name, params=params, body=body)
 
     # constructors: :MNEM operands is pattern { semantics }  (semantics braces or brackets)

@@ -27,6 +27,7 @@ def decode_one(spec: ProcessorSpec, code: bytes, addr: int = 0) -> Tuple[Optiona
     tbits = 16
     if spec.tokens:
         tbits = next(iter(spec.tokens.values())).bits
+    if tbits < 1 or tbits > 64 or len(spec.tokens) > 1: raise ValueError("decoder requires one token of 1..64 bits")
     tbytes = (tbits + 7)//8
     if len(code) < tbytes:
         return None, {}, "<truncated>", 0
@@ -37,12 +38,8 @@ def decode_one(spec: ProcessorSpec, code: bytes, addr: int = 0) -> Tuple[Optiona
         ok = True
         for pc in ctor.pattern:
             if pc.field not in fields:
-                # unknown field name: treat as literal mnemonic constraint skip
-                # only fail if it had a value and field missing and name looks like a field
-                if pc.value is not None:
-                    # check registers/operands: ignore
-                    pass
-                continue
+                ok = False
+                break
             if pc.value is not None and fields[pc.field] != pc.value:
                 ok = False; break
         if ok:
@@ -65,7 +62,7 @@ def decode_all(spec: ProcessorSpec, code: bytes, base_addr: int = 0):
     while off < len(code):
         ctor, bindings, dis, sz = decode_one(spec, code[off:], base_addr+off)
         if sz == 0:
-            break
+            raise ValueError(f"truncated instruction at {base_addr+off}")
         out.append({"addr": base_addr+off, "ctor": ctor, "bindings": bindings,
                     "disasm": dis, "size": sz})
         off += sz

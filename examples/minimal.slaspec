@@ -1,0 +1,4 @@
+define endian=little;
+define register offset=0 size=4 [ R0 R1 R2 R3 ];
+define token instr(16) [ op=(0,7) rd=(8,11) rs=(12,15) ];
+:ADD rd, rs is op=1 & rd & rs { R0 = R0 + R1; }

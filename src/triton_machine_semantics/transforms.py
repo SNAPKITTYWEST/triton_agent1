@@ -8,7 +8,6 @@
 """Transformations to unified Machine IR and P-code emission."""
 from __future__ import annotations
 import re, sys
-sys.path.insert(0, '/mnt/data')
 from triton_machine_semantics.sleigh_ast import ProcessorSpec, Constructor
 from triton_machine_semantics.pcode import PcodeOp, Varnode
 from triton_machine_semantics.mir import MachineIR, MIFunction, MIBlock, MIOp
@@ -22,15 +21,19 @@ def sleigh_to_pcode(spec: ProcessorSpec, ctor: Constructor, bindings: dict, base
     `goto target`, `if (c) goto t`, `call t`, `return`.
     Unknown statements lower to UNIMPLEMENTED (explicit, never silent)."""
     ops=[]; seq=0
-    reg = lambda name, size=4: Varnode("register", abs(hash(name)) % 4096, size)
-    # map operand names to varnodes via bindings where numeric
-    def vn_for(tok: str) -> Varnode:
+    def vn_for(tok: str, output=False) -> Varnode:
         tok=tok.strip()
-        if re.match(r'^-?\d+$', tok) or re.match(r'^0x', tok):
-            return Varnode("const", int(tok,0), 4)
-        if tok in bindings and isinstance(bindings[tok], int):
-            return Varnode("const", bindings[tok], 4)
-        return Varnode("register", abs(hash(tok)) % 8192, 4)
+        if tok in spec.registers:
+            reg=spec.registers[tok]
+            return Varnode(reg.space,reg.offset,reg.size)
+        if re.fullmatch(r"-?(?:0x[0-9a-fA-F]+|[0-9]+)",tok):
+            if output: raise ValueError("cannot assign to a literal")
+            return Varnode("const",int(tok,16) if "0x" in tok else int(tok,10),4)
+        if tok in bindings and isinstance(bindings[tok],Varnode):
+            return bindings[tok]
+        if tok in bindings and isinstance(bindings[tok],int) and not output:
+            return Varnode("const",bindings[tok],4)
+        raise ValueError(f"unresolved register or operand: {tok}; supply a Varnode binding")
     for s in ctor.semantics_ops:
         src=s["src"]
         m=re.match(r'if\s*\((.+)\)\s*goto\s+(\w+)', src, re.I)
@@ -54,20 +57,20 @@ def sleigh_to_pcode(spec: ProcessorSpec, ctor: Constructor, bindings: dict, base
             ops.append(op); seq+=1; continue
         m=re.match(r'(.+?)\s*=\s*\*(.+)', src)
         if m:
-            dst=vn_for(m.group(1)); ptr=vn_for(m.group(2))
+            dst=vn_for(m.group(1), output=True); ptr=vn_for(m.group(2))
             sp=Varnode("const",0,4)
             op=PcodeOp("LOAD",[sp,ptr],dst,base_addr,seq); op.load_space="ram"
             ops.append(op); seq+=1; continue
         m=re.match(r'(.+?)\s*=\s*(.+?)\s*([+\-*/&|^])\s*(.+)', src)
         if m:
             dst,a,opd,b=m.group(1),m.group(2),m.group(3),m.group(4)
-            mp={"+":"INT_ADD","-":"INT_SUB","*":"INT_MULT","&":"INT_AND","|":"INT_OR","^":"INT_XOR"}[opd]
+            mp={"+":"INT_ADD","-":"INT_SUB","*":"INT_MULT","/":"INT_DIV","&":"INT_AND","|":"INT_OR","^":"INT_XOR"}[opd]
             # '/' needs signedness; default unsigned
             if opd=="/": mp="INT_DIV"
-            ops.append(PcodeOp(mp,[vn_for(a),vn_for(b)],vn_for(dst),base_addr,seq)); seq+=1; continue
+            ops.append(PcodeOp(mp,[vn_for(a),vn_for(b)],vn_for(dst, output=True),base_addr,seq)); seq+=1; continue
         m=re.match(r'(.+?)\s*=\s*(.+)', src)
         if m:
-            ops.append(PcodeOp("COPY",[vn_for(m.group(2))],vn_for(m.group(1)),base_addr,seq)); seq+=1; continue
+            ops.append(PcodeOp("COPY",[vn_for(m.group(2))],vn_for(m.group(1), output=True),base_addr,seq)); seq+=1; continue
         ops.append(PcodeOp("UNIMPLEMENTED",[],None,base_addr,seq)); seq+=1
     return ops
 
@@ -87,7 +90,7 @@ def pcode_to_mir(ops_by_addr: dict, fname="pcode_main") -> MachineIR:
     for addr in sorted(ops_by_addr):
         blk=MIBlock(f"bb_{addr:x}")
         for op in ops_by_addr[addr]:
-            mop=_P2M.get(op.opcode, "NOP")
+            mop=_P2M.get(op.opcode, "UNIMPLEMENTED")
             args=[vname(v) for v in op.inputs]
             out=vname(op.output) if op.output else None
             ty=_ty_of_size(op.output.size if op.output else (op.inputs[0].size if op.inputs else 4))
@@ -100,7 +103,7 @@ def sleigh_to_mir(spec, decoded: list, fname="sleigh_main") -> MachineIR:
     ops_by_addr={}
     for d in decoded:
         ctor=d["ctor"]; addr=d["addr"]
-        if ctor is None: continue
+        if ctor is None: raise ValueError(f"cannot lower undecoded instruction at {addr}")
         ops_by_addr[addr]=sleigh_to_pcode(spec, ctor, d["bindings"], addr)
     return pcode_to_mir(ops_by_addr, fname)
 

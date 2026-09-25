@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple
 import re, sys
-sys.path.insert(0, '/mnt/data')
 from triton_machine_semantics.mir import MachineIR, MIFunction, MIBlock, MIOp
 
 # ---------- Assembly ----------
@@ -20,16 +19,16 @@ def parse_asm(text: str) -> List[Tuple[str, List[str]]]:
     for ln in text.splitlines():
         ln=re.sub(r'[;#].*$','',ln).strip()
         if not ln: continue
-        m=re.match(r'(\w+)\s+(.*)', ln)
-        if not m: continue
-        op=m.group(1).upper(); args=[a.strip() for a in m.group(2).split(',') if a.strip()]
+        m=re.match(r'(\w+)(?:\s+(.*))?', ln)
+        if not m: raise ValueError(f'invalid assembly: {ln}')
+        op=m.group(1).upper(); args=[a.strip() for a in (m.group(2) or '').split(',') if a.strip()]
         out.append((op,args))
     return out
 
 def asm_to_mir(text: str, fname="asm_main") -> MachineIR:
     mir=MachineIR(); fn=MIFunction(fname); blk=MIBlock("entry")
     ssa=0
-    amap={"MOV":"COPY","ADD":"ADD","SUB":"SUB","MUL":"MUL","AND":"AND","OR":"OR","XOR":"XOR",
+    amap={"MOV":"COPY","DIV":"DIV","ADD":"ADD","SUB":"SUB","MUL":"MUL","AND":"AND","OR":"OR","XOR":"XOR",
           "SHL":"SHL","SHR":"LSHR","SAR":"ASHR","LD":"LOAD","ST":"STORE","JMP":"BR","CJMP":"CBR","CALL":"CALL","RET":"RET"}
     for op,args in parse_asm(text):
         mop=amap.get(op, op)
@@ -63,7 +62,7 @@ def rtl_to_mir(stmts: List[RTLStmt], fname="rtl_main") -> MachineIR:
         m=re.match(r'(\w+)\s*([+\-*/&|^])\s*(\w+)', e)
         if m:
             a,opd,b=m.group(1),m.group(2),m.group(3)
-            mp={"+":"ADD","-":"SUB","*":"MUL","&":"AND","|":"OR","^":"XOR"}[opd]
+            mp={"+":"ADD","-":"SUB","*":"MUL","/":"DIV","&":"AND","|":"OR","^":"XOR"}[opd]
             blk.ops.append(MIOp(mp,[a,b],out=s.dst,ty="i32"))
         else:
             blk.ops.append(MIOp("COPY",[e],out=s.dst,ty="i32"))
@@ -86,44 +85,46 @@ def microcode_to_mir(ops: List[MicroOp], fname="ucode_main") -> MachineIR:
     mir=MachineIR(); fn=MIFunction(fname); blk=MIBlock("entry")
     mp={"ALU_ADD":"ADD","ALU_SUB":"SUB","REG_MOV":"COPY","MEM_RD":"LOAD","MEM_WR":"STORE","JUMP":"BR"}
     for mo in ops:
-        blk.ops.append(MIOp(mp.get(mo.op, "NOP"), mo.args, ty="i32", meta={"ucode":mo.op}))
+        blk.ops.append(MIOp(mp.get(mo.op, "UNIMPLEMENTED"), mo.args, ty="i32", meta={"ucode":mo.op}))
     fn.blocks.append(blk); mir.add_function(fn); return mir
 
 # ---------- Forth-style ----------
 class ForthMachine:
-    """Executable Forth-style stack machine (public subset)."""
+    """Bounded Forth subset; malformed and unknown words are errors."""
     def __init__(self):
-        self.stack: List[int]=[]; self.rstack: List[int]=[]
-        self.mem: Dict[int,int]={}; self.words: Dict[str,List[str]]={}
-    def run(self, src: str):
-        toks=src.split()
-        i=0
-        while i < len(toks):
-            t=toks[i]
-            if re.match(r'^-?\d+$', t): self.stack.append(int(t))
-            elif t=='+': b=self.stack.pop(); a=self.stack.pop(); self.stack.append(a+b)
-            elif t=='-': b=self.stack.pop(); a=self.stack.pop(); self.stack.append(a-b)
-            elif t=='*': b=self.stack.pop(); a=self.stack.pop(); self.stack.append(a*b)
-            elif t=='DUP': self.stack.append(self.stack[-1])
-            elif t=='DROP': self.stack.pop()
-            elif t=='SWAP': a=self.stack.pop(); b=self.stack.pop(); self.stack.extend([a,b])
-            elif t=='@': a=self.stack.pop(); self.stack.append(self.mem.get(a,0))
-            elif t=='!': a=self.stack.pop(); v=self.stack.pop(); self.mem[a]=v
-            elif t==':': # word definition : NAME ... ;
-                name=toks[i+1]; body=[]
-                i+=2
-                while toks[i]!=';': body.append(toks[i]); i+=1
-                self.words[name]=body
-            elif t in self.words:
-                self.run(' '.join(self.words[t]))
-            i+=1
+        self.stack=[]; self.rstack=[]; self.mem={}; self.words={}
+    def run(self,src,max_steps=100000):
+        if max_steps<1: raise ValueError("invalid step limit")
+        pending=list(reversed(src.split()));steps=0
+        while pending:
+            if steps>=max_steps: raise RuntimeError("Forth step limit exceeded")
+            steps+=1;t=pending.pop()
+            if re.fullmatch(r"-?\d+",t): self.stack.append(int(t));continue
+            if t==":":
+                if not pending: raise ValueError("missing word name")
+                name=pending.pop();body=[]
+                while pending and pending[-1]!=";": body.append(pending.pop())
+                if not pending: raise ValueError("unterminated word definition")
+                pending.pop();self.words[name]=body;continue
+            if t in self.words:
+                pending.extend(reversed(self.words[t]));continue
+            needed={"+":2,"-":2,"*":2,"DUP":1,"DROP":1,"SWAP":2,"@":1,"!":2}
+            if t not in needed: raise ValueError(f"unknown Forth word: {t}")
+            if len(self.stack)<needed[t]: raise ValueError(f"stack underflow: {t}")
+            if t in ("+","-","*"):
+                b=self.stack.pop();a=self.stack.pop();self.stack.append({"+":a+b,"-":a-b,"*":a*b}[t])
+            elif t=="DUP": self.stack.append(self.stack[-1])
+            elif t=="DROP": self.stack.pop()
+            elif t=="SWAP": self.stack[-2:]=reversed(self.stack[-2:])
+            elif t=="@": self.stack.append(self.mem.get(self.stack.pop(),0))
+            elif t=="!": a=self.stack.pop();self.mem[a]=self.stack.pop()
         return list(self.stack)
 
 def forth_to_mir(src: str, fname="forth_main") -> MachineIR:
     mir=MachineIR(); fn=MIFunction(fname); blk=MIBlock("entry")
     # each forth token becomes a stack-effect MI op (executable model)
     for t in src.split():
-        blk.ops.append(MIOp("NOP",[t],ty="i32",meta={"forth":t}))
+        blk.ops.append(MIOp("UNIMPLEMENTED",[t],ty="i32",meta={"forth":t}))
     fn.blocks.append(blk); mir.add_function(fn); return mir
 
 # ---------- OISC / URISC / MISC descriptors ----------

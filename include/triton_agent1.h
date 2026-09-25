@@ -31,12 +31,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
+#include <math.h>
 
 /* ================================================================
  * MEMORY
  * ================================================================ */
 
-static void *ta_malloc(size_t n)
+static inline void *ta_malloc(size_t n)
 {
     void *p = malloc(n ? n : 1);
     if (!p) {
@@ -46,7 +48,7 @@ static void *ta_malloc(size_t n)
     return p;
 }
 
-static void *ta_calloc(size_t n, size_t s)
+static inline void *ta_calloc(size_t n, size_t s)
 {
     void *p = calloc(n ? n : 1, s ? s : 1);
     if (!p) {
@@ -56,7 +58,7 @@ static void *ta_calloc(size_t n, size_t s)
     return p;
 }
 
-static void *ta_realloc(void *p, size_t n)
+static inline void *ta_realloc(void *p, size_t n)
 {
     void *q = realloc(p, n ? n : 1);
     if (!q) {
@@ -66,7 +68,7 @@ static void *ta_realloc(void *p, size_t n)
     return q;
 }
 
-static char *ta_strdup(const char *s)
+static inline char *ta_strdup(const char *s)
 {
     size_t n = strlen(s);
     char *p = ta_malloc(n + 1);
@@ -108,12 +110,12 @@ typedef struct {
     size_t errors;
 } TA_Diagnostics;
 
-static void ta_diag_init(TA_Diagnostics *d)
+static inline void ta_diag_init(TA_Diagnostics *d)
 {
     memset(d, 0, sizeof(*d));
 }
 
-static void ta_diag_push(
+static inline void ta_diag_push(
     TA_Diagnostics *d,
     TA_DiagnosticKind kind,
     TA_Location loc,
@@ -134,7 +136,7 @@ static void ta_diag_push(
         d->errors++;
 }
 
-static void ta_diag_free(TA_Diagnostics *d)
+static inline void ta_diag_free(TA_Diagnostics *d)
 {
     for (size_t i = 0; i < d->count; ++i)
         free(d->items[i].message);
@@ -214,7 +216,7 @@ typedef struct {
     size_t capacity;
 } TA_TokenVector;
 
-static void token_vector_push(TA_TokenVector *v, TA_Token t)
+static inline void token_vector_push(TA_TokenVector *v, TA_Token t)
 {
     if (v->count == v->capacity) {
         size_t nc = v->capacity ? v->capacity * 2 : 128;
@@ -225,7 +227,7 @@ static void token_vector_push(TA_TokenVector *v, TA_Token t)
     v->items[v->count++] = t;
 }
 
-static void token_free(TA_Token *t)
+static inline void token_free(TA_Token *t)
 {
     if (t->kind == TOK_IDENTIFIER ||
         t->kind == TOK_STRING) {
@@ -234,7 +236,7 @@ static void token_free(TA_Token *t)
     }
 }
 
-static void token_vector_free(TA_TokenVector *v)
+static inline void token_vector_free(TA_TokenVector *v)
 {
     for (size_t i = 0; i < v->count; ++i)
         token_free(&v->items[i]);
@@ -257,12 +259,12 @@ typedef struct {
     TA_Diagnostics *diagnostics;
 } TA_Lexer;
 
-static bool lexer_at_end(const TA_Lexer *l)
+static inline bool lexer_at_end(const TA_Lexer *l)
 {
     return l->position >= l->length;
 }
 
-static char lexer_peek(const TA_Lexer *l)
+static inline char lexer_peek(const TA_Lexer *l)
 {
     if (lexer_at_end(l))
         return '\0';
@@ -270,7 +272,7 @@ static char lexer_peek(const TA_Lexer *l)
     return l->source[l->position];
 }
 
-static char lexer_peek_next(const TA_Lexer *l)
+static inline char lexer_peek_next(const TA_Lexer *l)
 {
     if (l->position + 1 >= l->length)
         return '\0';
@@ -278,7 +280,7 @@ static char lexer_peek_next(const TA_Lexer *l)
     return l->source[l->position + 1];
 }
 
-static char lexer_advance(TA_Lexer *l)
+static inline char lexer_advance(TA_Lexer *l)
 {
     if (lexer_at_end(l))
         return '\0';
@@ -297,7 +299,7 @@ static char lexer_advance(TA_Lexer *l)
     return c;
 }
 
-static void lexer_init(
+static inline void lexer_init(
     TA_Lexer *l,
     const char *source,
     TA_Diagnostics *diagnostics)
@@ -312,17 +314,17 @@ static void lexer_init(
     l->location.column = 1;
 }
 
-static bool identifier_start(char c)
+static inline bool identifier_start(char c)
 {
     return isalpha((unsigned char)c) || c == '_';
 }
 
-static bool identifier_continue(char c)
+static inline bool identifier_continue(char c)
 {
     return isalnum((unsigned char)c) || c == '_';
 }
 
-static TA_Token make_simple(
+static inline TA_Token make_simple(
     TA_TokenKind kind,
     TA_Location loc)
 {
@@ -333,7 +335,7 @@ static TA_Token make_simple(
     return t;
 }
 
-static TA_Token lexer_identifier(TA_Lexer *l)
+static inline TA_Token lexer_identifier(TA_Lexer *l)
 {
     TA_Location loc = l->location;
     size_t start = l->position;
@@ -352,7 +354,7 @@ static TA_Token lexer_identifier(TA_Lexer *l)
     return t;
 }
 
-static TA_Token lexer_number(TA_Lexer *l)
+static inline TA_Token lexer_number(TA_Lexer *l)
 {
     TA_Location loc = l->location;
     size_t start = l->position;
@@ -382,17 +384,20 @@ static TA_Token lexer_number(TA_Lexer *l)
         real ? TOK_REAL : TOK_INTEGER,
         loc);
 
+    errno = 0;
     if (real)
         t.value.real = strtod(text, NULL);
     else
         t.value.integer = strtoll(text, NULL, 10);
 
+    if (errno == ERANGE || (real && !isfinite(t.value.real)))
+        ta_diag_push(l->diagnostics, TA_DIAG_ERROR, loc, "numeric literal out of range");
     free(text);
 
     return t;
 }
 
-static TA_Token lexer_string(TA_Lexer *l)
+static inline TA_Token lexer_string(TA_Lexer *l)
 {
     TA_Location loc = l->location;
 
@@ -445,7 +450,7 @@ static TA_Token lexer_string(TA_Lexer *l)
     return t;
 }
 
-static TA_Token lexer_next(TA_Lexer *l)
+static inline TA_Token lexer_next(TA_Lexer *l)
 {
     while (!lexer_at_end(l)) {
         char c = lexer_peek(l);
@@ -601,7 +606,7 @@ static TA_Token lexer_next(TA_Lexer *l)
     return make_simple(TOK_EOF, l->location);
 }
 
-static void lexer_all(
+static inline void lexer_all(
     TA_Lexer *lexer,
     TA_TokenVector *tokens)
 {
@@ -647,7 +652,7 @@ typedef struct {
     size_t capacity;
 } TA_ASTVector;
 
-static void ast_vector_push(TA_ASTVector *v, TA_AST *node)
+static inline void ast_vector_push(TA_ASTVector *v, TA_AST *node)
 {
     if (v->count == v->capacity) {
         size_t nc = v->capacity ? v->capacity * 2 : 16;
@@ -727,7 +732,7 @@ struct TA_AST {
     } as;
 };
 
-static TA_AST *ast_new(TA_ASTKind kind, TA_Location loc)
+static inline TA_AST *ast_new(TA_ASTKind kind, TA_Location loc)
 {
     TA_AST *n = ta_calloc(1, sizeof(*n));
     n->kind = kind;
@@ -735,7 +740,7 @@ static TA_AST *ast_new(TA_ASTKind kind, TA_Location loc)
     return n;
 }
 
-static TA_AST *ast_identifier(
+static inline TA_AST *ast_identifier(
     const char *name,
     TA_Location loc)
 {
@@ -744,7 +749,7 @@ static TA_AST *ast_identifier(
     return n;
 }
 
-static TA_AST *ast_integer(
+static inline TA_AST *ast_integer(
     int64_t value,
     TA_Location loc)
 {
@@ -753,7 +758,7 @@ static TA_AST *ast_integer(
     return n;
 }
 
-static TA_AST *ast_real(
+static inline TA_AST *ast_real(
     double value,
     TA_Location loc)
 {
@@ -762,7 +767,7 @@ static TA_AST *ast_real(
     return n;
 }
 
-static TA_AST *ast_string(
+static inline TA_AST *ast_string(
     const char *value,
     TA_Location loc)
 {
@@ -771,7 +776,7 @@ static TA_AST *ast_string(
     return n;
 }
 
-static void ast_free(TA_AST *n)
+static inline void ast_free(TA_AST *n)
 {
     if (!n)
         return;
@@ -885,7 +890,7 @@ struct TA_Type {
     char *name;
 };
 
-static TA_Type *type_new(TA_TypeKind kind)
+static inline TA_Type *type_new(TA_TypeKind kind)
 {
     TA_Type *t = ta_calloc(1, sizeof(*t));
     t->kind = kind;
@@ -917,12 +922,12 @@ typedef struct {
     size_t capacity;
 } TA_SymbolTable;
 
-static void symbol_table_init(TA_SymbolTable *t)
+static inline void symbol_table_init(TA_SymbolTable *t)
 {
     memset(t, 0, sizeof(*t));
 }
 
-static bool symbol_exists(
+static inline bool symbol_exists(
     const TA_SymbolTable *t,
     const char *name)
 {
@@ -934,7 +939,7 @@ static bool symbol_exists(
     return false;
 }
 
-static bool symbol_add(
+static inline bool symbol_add(
     TA_SymbolTable *t,
     const char *name,
     TA_SymbolKind kind,
@@ -964,7 +969,7 @@ static bool symbol_add(
     return true;
 }
 
-static TA_Symbol *symbol_find(
+static inline TA_Symbol *symbol_find(
     TA_SymbolTable *t,
     const char *name)
 {
@@ -976,7 +981,7 @@ static TA_Symbol *symbol_find(
     return NULL;
 }
 
-static void symbol_table_free(TA_SymbolTable *t)
+static inline void symbol_table_free(TA_SymbolTable *t)
 {
     for (size_t i = 0; i < t->count; ++i)
         free(t->items[i].name);
@@ -1068,12 +1073,12 @@ typedef struct {
     size_t value_type_capacity;
 } TA_IRModule;
 
-static void ir_init(TA_IRModule *m)
+static inline void ir_init(TA_IRModule *m)
 {
     memset(m, 0, sizeof(*m));
 }
 
-static TA_IRBlock ir_create_block(TA_IRModule *m)
+static inline TA_IRBlock ir_create_block(TA_IRModule *m)
 {
     if (m->block_count == m->block_capacity) {
         size_t nc =
@@ -1099,7 +1104,7 @@ static TA_IRBlock ir_create_block(TA_IRModule *m)
     return id;
 }
 
-static TA_IRValue ir_new_value(
+static inline TA_IRValue ir_new_value(
     TA_IRModule *m,
     TA_Type *type)
 {
@@ -1134,7 +1139,7 @@ static TA_IRValue ir_new_value(
     return value;
 }
 
-static void ir_emit(
+static inline void ir_emit(
     TA_IRModule *m,
     TA_IRBlock block_id,
     TA_IRInstruction instruction)
@@ -1157,6 +1162,18 @@ static void ir_emit(
     b->instructions[b->count++] = instruction;
 }
 
+static inline void ir_free(TA_IRModule *m)
+{
+    for (size_t i = 0; i < m->block_count; ++i) free(m->blocks[i].instructions);
+    for (size_t i = 0; i < m->value_type_count; ++i) {
+        bool seen = false;
+        for (size_t j = 0; j < i; ++j)
+            if (m->value_types[j] == m->value_types[i]) seen = true;
+        if (!seen) free(m->value_types[i]);
+    }
+    free(m->blocks); free(m->value_types); memset(m, 0, sizeof(*m));
+}
+
 /* ================================================================
  * IR BUILDER
  * ================================================================ */
@@ -1166,7 +1183,7 @@ typedef struct {
     TA_IRBlock current;
 } TA_IRBuilder;
 
-static TA_IRBuilder ir_builder(
+static inline TA_IRBuilder ir_builder(
     TA_IRModule *module)
 {
     TA_IRBuilder b;
@@ -1177,7 +1194,7 @@ static TA_IRBuilder ir_builder(
     return b;
 }
 
-static TA_IRValue ir_const_i64(
+static inline TA_IRValue ir_const_i64(
     TA_IRBuilder *b,
     int64_t value)
 {
@@ -1200,12 +1217,14 @@ static TA_IRValue ir_const_i64(
     return result;
 }
 
-static TA_IRValue ir_binary(
+static inline TA_IRValue ir_binary(
     TA_IRBuilder *b,
     TA_IROpcode opcode,
     TA_IRValue left,
     TA_IRValue right)
 {
+    if (left >= b->module->next_value || right >= b->module->next_value)
+        return TA_IR_INVALID_VALUE;
     TA_Type *type =
         b->module->value_types[left];
 
@@ -1229,7 +1248,7 @@ static TA_IRValue ir_binary(
  * IR TEXT DUMP
  * ================================================================ */
 
-static const char *ir_opcode_name(TA_IROpcode op)
+static inline const char *ir_opcode_name(TA_IROpcode op)
 {
     switch (op) {
     case IR_NOP: return "nop";
@@ -1260,7 +1279,7 @@ static const char *ir_opcode_name(TA_IROpcode op)
     }
 }
 
-static void ir_dump(const TA_IRModule *m, FILE *out)
+static inline void ir_dump(const TA_IRModule *m, FILE *out)
 {
     for (size_t bi = 0; bi < m->block_count; ++bi) {
         const TA_IRBasicBlock *b = &m->blocks[bi];
@@ -1343,7 +1362,7 @@ typedef struct {
     TA_IRModule ir;
 } TA_JovialCompiler;
 
-static void jovial_compiler_init(TA_JovialCompiler *c)
+static inline void jovial_compiler_init(TA_JovialCompiler *c)
 {
     memset(c, 0, sizeof(*c));
 
@@ -1369,7 +1388,7 @@ typedef struct {
     TA_IRModule ir;
 } TA_CMS2Compiler;
 
-static void cms2_compiler_init(TA_CMS2Compiler *c)
+static inline void cms2_compiler_init(TA_CMS2Compiler *c)
 {
     memset(c, 0, sizeof(*c));
 
@@ -1395,7 +1414,7 @@ typedef struct {
     TA_IRModule ir;
 } TA_TACPOLCompiler;
 
-static void tacpol_compiler_init(TA_TACPOLCompiler *c)
+static inline void tacpol_compiler_init(TA_TACPOLCompiler *c)
 {
     memset(c, 0, sizeof(*c));
 
@@ -1411,7 +1430,7 @@ static void tacpol_compiler_init(TA_TACPOLCompiler *c)
  * GENERIC FRONTEND LEXICAL ENTRY
  * ================================================================ */
 
-static bool compile_lexically(
+static inline bool compile_lexically(
     const char *source,
     TA_Diagnostics *diagnostics,
     TA_TokenVector *tokens)
@@ -1434,7 +1453,7 @@ static bool compile_lexically(
  * COMMON EXPRESSION LOWERING
  * ================================================================ */
 
-static TA_IRValue lower_expression(
+static inline TA_IRValue lower_expression(
     TA_IRBuilder *builder,
     TA_AST *node)
 {

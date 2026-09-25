@@ -8,11 +8,13 @@
 
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-brightgreen.svg)](LICENSE)
 [![Governance: Trust](https://img.shields.io/badge/Governance-Trust%20Controlled-8b5cf6.svg)](GOVERNANCE.md)
-[![Language: C11](https://img.shields.io/badge/C-C11-00599C.svg?logo=c)](triton_agent1.h)
-[![Language: Python](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](triton_machine_semantics/)
-[![Spec: SLED](https://img.shields.io/badge/DSL-SLED-06b6d4.svg)](sled/)
-[![Model: SLEIGH%20%2F%20P--code](https://img.shields.io/badge/Model-SLEIGH%20%2F%20P--code-f59e0b.svg)](triton_machine_semantics/pcode.py)
-[![Formal: TLA%2B](https://img.shields.io/badge/Formal-TLA%2B-2563eb.svg)](sled/core.tla)
+[![Language: C11](https://img.shields.io/badge/C-C11-00599C.svg?logo=c)](include/triton_agent1.h)
+[![Language: Python](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](src/triton_machine_semantics/)
+[![Spec: SLED](https://img.shields.io/badge/DSL-SLED-06b6d4.svg)](specs/sled/)
+[![Model: SLEIGH%20%2F%20P--code](https://img.shields.io/badge/Model-SLEIGH%20%2F%20P--code-f59e0b.svg)](src/triton_machine_semantics/pcode.py)
+[![Formal: TLA%2B](https://img.shields.io/badge/Formal-TLA%2B-2563eb.svg)](specs/sled/core.tla)
+[![CI](https://github.com/SNAPKITTYWEST/triton_agent1/actions/workflows/ci.yml/badge.svg)](https://github.com/SNAPKITTYWEST/triton_agent1/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SNAPKITTYWEST/triton_agent1)](https://github.com/SNAPKITTYWEST/triton_agent1/releases)
 [![Status: Executable%20Core](https://img.shields.io/badge/Status-Executable%20Core-16a34a.svg)](run_tests.py)
 
 <sub>authors · <b>ahmedparr93@gmail.com</b> · <b>SNAPKITTYWEST</b></sub>
@@ -20,6 +22,21 @@
 </div>
 
 ---
+
+## Release 0.2.0 support boundary
+
+This release hardens and packages the existing machine-semantics toolkit.
+It is suitable for the documented local parsing, integer interpretation, and
+source-generation workflows after validation against your inputs. It is not a
+complete production compiler or an untrusted-code sandbox.
+
+| Area | Delivered behavior | Boundary |
+|---|---|---|
+| C11 | Lexer diagnostics, IR builders, command-line demo | Fixed demonstration IR; no full source compiler |
+| Python | Installable package, CLI, bounded integer/Forth/SUBLEQ execution | Documented subsets only |
+| GPU | Single-operation i32 Triton/PTX source generation | No device validation in CI |
+| SLED/TLA+ | Original research artifacts preserved | No runtime or verified proof supplied |
+| Governance | MPL notices and Trust charter preserved | No network authorization service |
 
 ## Table of contents
 
@@ -98,11 +115,11 @@ description of a machine, all the way down to code a modern accelerator can run.
 TRITON-SLED holds itself to a small number of principles, and they explain most
 of the choices you will find in the code.
 
-**1. Executable over aspirational.** Every layer in this repository *runs*. The
-lexers lex, the decoders decode, the P-code engine executes, the lowering
-pipeline emits real kernels. Nothing is a stub that "would work if finished."
-Where a construct is not yet supported, the code says so explicitly rather than
-silently producing something plausible-looking and wrong.
+**1. Evidence before claims.** The release includes executable Python subsets,
+a C lexer/IR demonstration, and separately identified research specifications.
+The SLED language artifacts have no included execution runtime. Generated GPU
+source is inspected by tests but is not GPU-validated in the release matrix.
+Unsupported backend operations are rejected explicitly.
 
 **2. Documented subsets, never invented history.** Several of the input
 languages TRITON-SLED accepts are historical or based on published
@@ -124,54 +141,33 @@ JOVIAL distinct from the semantics of CMS-2, even though they share the same
 downstream IR. Contamination between frontends is a category of bug this layout
 makes structurally hard to introduce.
 
-**5. Verification is a first-class artifact.** The pipeline's promotion
-semantics are specified in TLA+ and checked as invariants, not just described in
-prose. Correctness properties that can be stated formally, are.
+**5. Verification has a boundary.** Regression tests and C sanitizers exercise the shipped implementations. The inherited TLA+ model is an unverified research artifact; theorem declarations are not proof results.
 
 ---
 
 ## Repository layout
 
-```
-new-repo/
-├── README.md                     ← you are here
-├── LICENSE                       ← full MPL-2.0 text
-├── GOVERNANCE.md                 ← copyleft node-governance charter
-├── assets/
-│   └── logo.svg                  ← project mark
-├── build.sh                      ← C build + smoke run
-├── run_tests.py                  ← end-to-end executable test harness
-│
-├── triton_agent1.h               ← C11 compiler infrastructure (header-library)
-├── triton_agent1.c               ← C11 lexer/dialect core
-├── triton_agent1_main.c          ← C11 executable driver
-│
-├── triton_machine_semantics/     ← the Python toolkit (importable package)
-│   ├── __init__.py
-│   ├── sleigh_ast.py             ← processor-spec AST
-│   ├── sleigh_parser.py          ← SLEIGH-subset parser
-│   ├── sleigh_decoder.py         ← bytes → constructor → disassembly
-│   ├── sled.py                   ← SLED encode/decode model
-│   ├── ssl_semantics.py          ← SSL/RTL effect parser
-│   ├── pcode.py                  ← P-code opcodes, varnodes, address spaces
-│   ├── mir.py                    ← unified Machine IR
-│   ├── frontends.py              ← asm / RTL / microcode / Forth / OISC
-│   ├── transforms.py             ← SLEIGH→P-code→MIR lowering
-│   └── lowering.py               ← MIR→normalized→Triton/PTX
-│
-└── sled/                         ← the SLED language itself
-    ├── core.sled                 ← prelude: Option/Result/List/Map
-    ├── token.sled                ← token kinds
-    ├── lexer.sled                ← SLED lexer, written in SLED
-    ├── ast.sled                  ← SLED AST
-    ├── parser.sled               ← SLED parser, written in SLED
-    ├── value.sled                ← runtime value model
-    ├── graph.sled                ← node/edge graph model
-    ├── state.sled                ← runtime state
-    ├── core.tla                  ← TLA+ pipeline specification
-    ├── triton-sled.core.sled     ← the TRITON pipeline program
-    └── triton-sled.full.sled     ← the full annotated program
-```
+    triton_agent1/
+    ├── csrc/                 C command-line driver
+    ├── include/              C11 header library
+    ├── src/triton_machine_semantics/
+    │   ├── cli.py            Installed command-line interface
+    │   ├── pcode_engine.py   Bounded integer interpreter
+    │   ├── subleq.py         Assembler and bounded interpreter
+    │   └── ...               Parsers, IR, transforms, source emitters
+    ├── tests/                Regression and C CLI tests
+    ├── examples/             Small inputs and historical smoke script
+    ├── specs/sled/           Preserved SLED and TLA+ specifications
+    ├── archive/              Original unfinished C source, preserved as text
+    ├── scripts/              Build, wheel validation, release packaging
+    ├── docs/                 Release procedure
+    ├── assets/               Original project logo
+    ├── .github/workflows/    Cross-platform builds and sanitizer checks
+    ├── CMakeLists.txt        C build and CTest registration
+    ├── pyproject.toml        Installable Python distribution
+    ├── run_tests.py          Development test entry point
+    ├── LICENSE              MPL-2.0
+    └── GOVERNANCE.md        Separate Trust governance policy
 
 ---
 
@@ -198,7 +194,7 @@ new-repo/
                      └───────────┬───────────┘
                                  ▼
                  ┌───────────────────────────────┐
-                 │  normalize (fold/copy/DCE)     │
+                 │  normalize (integer folding)     │
                  └───────────────┬───────────────┘
                                  ▼
                  ┌───────────────────────────────┐
@@ -213,7 +209,7 @@ new-repo/
               └────────────┘          └────────────┘
 ```
 
-Every arrow in that diagram is code you can run today.
+This diagram describes the architectural direction. The supported executable paths and their restrictions are listed below; Forth execution and SUBLEQ execution are separate interpreters, not complete GPU compilation paths.
 
 ---
 
@@ -232,7 +228,7 @@ error / fatal severities, a token model with a growable token vector, a complete
 recursive lexer, an arena-friendly AST with a tagged-union node type, a type
 system, a symbol table, and a small SSA-flavored IR with a text dumper.
 `triton_agent1_main.c` is the thin executable driver that reads a file, runs the
-lexer, prints diagnostics, and dumps IR.
+lexer, prints diagnostics, and dumps a **fixed 12 + 30 demonstration IR**. It does not parse the input into that IR or implement full JOVIAL, CMS-2, or TACPOL compilation.
 
 Three things are worth calling out about this component.
 
@@ -252,13 +248,13 @@ Third, the **IR is genuinely an IR**. It has basic blocks, typed SSA values, an
 opcode set spanning arithmetic, comparison, control flow, calls, and memory, and
 a builder API (`ir_const_i64`, `ir_binary`, …). The driver validates the whole
 pipeline by constructing a small IR module and dumping it, so a successful run
-proves the infrastructure end to end.
+checks the lexer and IR builder independently; it does not prove source-to-IR compilation.
 
 Build it:
 
 ```sh
 cc -std=c11 -O2 -Wall -Wextra -pedantic \
-   triton_agent1_main.c -o triton-agent1
+   -Iinclude csrc/triton_agent1_main.c -o triton-agent1
 ```
 
 Run it:
@@ -341,10 +337,9 @@ and an MIR lowering:
 - **Microcode** — whitespace-delimited micro-operations (`ALU_ADD`, `REG_MOV`,
   `MEM_RD`, …) mapped to MIR.
 - **Forth-style** — and this one is genuinely *executable*. `ForthMachine` is a
-  working stack machine: literals push, `+ - *` compute, `DUP DROP SWAP` shuffle,
+  bounded stack machine: literals push, `+ - *` compute, `DUP DROP SWAP` shuffle,
   `@ !` read and write memory, and `: NAME ... ;` defines new words that then run
-  recursively. `forth_to_mir` additionally captures the token stream as an MIR
-  model.
+  through an iterative dispatcher with an instruction budget. Forth-to-MIR is explicitly unsupported and produces an UNIMPLEMENTED marker.
 - **OISC / URISC / MISC** — descriptor tables for one-instruction and
   minimal-instruction computers (SUBLEQ, ADDLEQ, and friends), documenting the
   single-instruction semantics that make these architectures Turing-complete.
@@ -389,36 +384,29 @@ full MIR module.
 
 `lowering.py` is the TRITON in TRITON-SLED. It runs in stages:
 
-1. **`normalize_mir`** performs intra-block **constant folding**, **copy
-   propagation**, and **dead-code elimination**. Literal arithmetic collapses to
-   `CONST`; copies of copies resolve to their source; operations whose results
-   are never used and have no side effects are dropped.
+1. **normalize_mir** folds literal integer ADD, SUB, MUL, AND, OR, and XOR
+   with width-specific wrapping. It preserves writes. Copy propagation and
+   dead-code elimination are intentionally absent because MIR has no live-out contract.
+2. **find_parallelizable** accepts one i32 arithmetic write per block, with
+   an array input followed by an integer constant. Two-array operations,
+   dependent sequences, branches, loads/stores, floats, and reductions are rejected.
+3. **to_triton_kernel** emits masked input loads, the actual operation, and
+   masked output stores. Input/output buffers must contain 32-bit integer elements.
+4. **to_ptx** emits the same operation with explicit indexing, bounds checking,
+   global loads/stores, PTX 7.0 and an sm_80 target.
 
-2. **`find_parallelizable`** identifies **data-parallel candidates** — basic
-   blocks containing only elementwise arithmetic over distinct outputs, with no
-   branches, calls, returns, or aliasing memory traffic, and no cross-op
-   dependencies within the block. These are exactly the blocks that map cleanly
-   onto SIMT execution.
-
-3. **`to_triton_kernel`** emits a real Triton-language kernel skeleton for a
-   candidate — program-id, block offsets, masked load, the elementwise body, and
-   a masked store. If a candidate is not data-parallel, it returns `None`. It
-   never forces a kernel out of code that should not become one.
-
-4. **`to_ptx`** emits PTX (targeting `sm_80`) for purely arithmetic candidates,
-   and otherwise returns `(None, reason)` — the reason string tells you *why* a
-   block was refused, so the decision is auditable.
-
-`lower_pipeline` wires all four together and returns the normalized IR, the
-candidate list, the kernels, and the PTX results in one dictionary.
+The lower_pipeline result includes normalized, candidates, kernels, ptx, and
+rejected entries. Every rejected entry gives its function, block, and reason.
+These are source generators. The release does not establish GPU compilation,
+device execution, throughput, or equivalence on actual accelerator hardware.
 
 ---
 
 ## Component 3 — the SLED language
 
-The `sled/` directory contains a small, purpose-built functional language —
+The `specs/sled/` directory contains a small, purpose-built functional language —
 **SLED** — and, strikingly, a lexer and parser for SLED **written in SLED
-itself**. This is the project's self-hosting ambition made concrete.
+itself**. These are preserved design artifacts; this repository does not ship a compiler or runtime that executes them.
 
 The language has algebraic data types (`enum` and tagged `type` unions), records,
 generics (`List<T>`, `Option<T>`, `Result<T,E>`, `Map<K,V>`), pattern matching,
@@ -441,58 +429,57 @@ project metadata.
 
 ## Component 4 — the TLA+ specification
 
-`sled/core.tla` is a **TLA+ model of the pipeline's promotion semantics**, and it
-is the formal backbone of the SLED programs above. It models the pipeline as a
-sequence of layers — observations promote to evidence, evidence to findings,
-findings to a risk model, the risk model to decisions, decisions to
-recommendations, recommendations to a report — and it states the properties that
-must hold no matter how the promotion is scheduled:
+The inherited specs/sled/core.tla describes promotion through evidence, findings,
+risk, decisions, recommendations, and reports. It contains named invariants and
+theorem statements. **No TLC run or machine-checked proof is claimed for 0.2.0.**
 
-- **`InvTypeOK`** — every variable stays within its declared domain.
-- **`InvLayering`** — no layer may reference elements absent from the layer below
-  it; the chain is strictly monotone.
-- **`InvInversionComplete`** — a report exists only if the *entire* chain beneath
-  it has been materialized. No report without evidence.
-- **`InvProgress`** — the terminal stage is reachable; report emission does not
-  deadlock.
-- **`InvIdentity`** — a system-identity invariant, asserting the project's
-  non-commercial research character at the level of the model.
-
-These are checkable with TLC, the TLA+ model checker. The corresponding
-`THEOREM`s state that the specification implies each invariant always holds.
-This is the "verification is a first-class artifact" principle in its purest
-form: the correctness of the promotion chain is not asserted in a comment, it is
-proved against a model.
+The model needs review of next-state variable constraints, finite model
+configuration, and the distinction between safety invariants and eventual
+progress before verification results can be published. Keeping the original
+model preserves provenance; including a theorem declaration is not evidence
+that its statement holds. This model also does not verify the C or Python code.
 
 ---
 
 ## Getting started
 
-**Requirements:** a C11 compiler (for Component 1) and Python 3.10+ (for
-Component 2). The Python package has no third-party runtime dependencies for the
-core pipeline; only the *execution* of an emitted Triton kernel would require a
-GPU stack, and TRITON-SLED emits kernels as source, so you can inspect them
-without one.
+Requirements: Python 3.10 or newer for the toolkit. Building the C demo additionally
+requires CMake 3.20 or newer and a C11 compiler. Python runtime dependencies are
+empty; setuptools and wheel are build-time dependencies.
 
-**Clone and build the C core:**
+    git clone https://github.com/SNAPKITTYWEST/triton_agent1.git
+    cd triton_agent1
+    python -m venv .venv
 
-```sh
-git clone <your-remote> new-repo
-cd new-repo
-sh build.sh          # builds triton-agent1 and runs the smoke tests
-```
+Activate with .venv/Scripts/Activate.ps1 on Windows PowerShell, or
+source .venv/bin/activate on POSIX shells, then install:
 
-**Use the Python toolkit:**
+    python -m pip install .
+    triton-semantics --version
+    triton-semantics forth "3 4 + 2 *"
+    triton-semantics decode examples/minimal.slaspec 0100
+    triton-semantics lower examples/elementwise.asm --format ptx
 
-```python
-import sys
-sys.path.insert(0, ".")   # repo root, so the package is importable
+The Forth example prints [14]. The lower command writes generated source to
+standard output; redirect it to a file if desired. Use --format triton or
+--format mir for the other outputs.
 
-from triton_machine_semantics.sleigh_parser import parse_sleigh
-from triton_machine_semantics.sleigh_decoder import decode_all
-from triton_machine_semantics.transforms import sleigh_to_mir
-from triton_machine_semantics.lowering import lower_pipeline
-```
+Build and check the C program:
+
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --config Release
+    ctest --test-dir build -C Release --output-on-failure
+
+On Windows with Visual Studio, the executable is build/Release/triton-agent1.exe.
+Single-configuration Unix generators place it at build/triton-agent1. MinGW on
+Windows places it at build/triton-agent1.exe. Pass jovial, cms2, or tacpol followed
+by examples/program.txt. Each invocation performs lexical validation and emits
+the same explicitly labeled fixed IR demonstration.
+
+For Python development use python -m pip install -e .; production installations
+should use a versioned wheel in a dedicated environment. Do not put repository
+directories into application sys.path. The source layout prevents accidental
+imports from hiding broken package installations.
 
 ---
 
@@ -527,7 +514,7 @@ print(ForthMachine().run("3 4 + 2 *"))     # -> [14]
 from triton_machine_semantics.frontends import asm_to_mir
 from triton_machine_semantics.lowering import lower_pipeline
 
-mir = asm_to_mir("ADD R0, R1, R2\nSUB R3, R0, R1\n")
+mir = asm_to_mir("ADD output, input, 7\n")
 result = lower_pipeline(mir)
 print(len(result["candidates"]), "parallel candidate(s)")
 for kernel in result["kernels"]:
@@ -539,20 +526,32 @@ for kernel in result["kernels"]:
 
 ## Testing and verification
 
-`run_tests.py` is the end-to-end harness. It exercises the whole arc in one run:
-SLEIGH parse and decode; SLEIGH→P-code→engine execution; a **differential test**
-that checks the P-code engine's 32-bit arithmetic against Python's own integers
-across a matrix of inputs; the SUBLEQ toolchain; the MIR frontends (assembly,
-RTL, Forth); and the lowering pipeline, printing the emitted kernels and PTX
-reasons. A successful run ends with `ALL EXECUTABLE TESTS COMPLETED`.
+Run python run_tests.py. Set TRITON_C_BINARY to the absolute path of the built
+C executable to include its subprocess tests. Without it the C test class is
+reported as skipped; that is not a complete release check.
 
-> **Note:** `run_tests.py` imports two modules — `pcode_engine` and `subleq` —
-> that complete the execution and SUBLEQ layers. If they are not yet present in
-> your checkout, add them before running the full harness; the rest of the
-> package imports and runs independently of them.
+The suite includes 25 tests: parsing and decoder boundaries, declared register
+offsets, cross-process hash-seed determinism, integer execution, signed division,
+memory endianness, execution budgets, Forth errors, SUBLEQ, normalization
+regressions, source generation, CLI errors, and malformed C input. Integer
+arithmetic includes 960 reproducible randomized differential cases across four
+widths. The tests compare results and failures rather than merely printing them.
 
-Formal verification lives in `sled/core.tla`, checkable with TLC as described
-above.
+CTest independently runs three dialect smoke cases and one rejected-input case.
+CI runs the Python and C tests on Linux, Windows, and macOS with Python 3.10 and
+3.13. A separate Linux Clang job uses AddressSanitizer, UndefinedBehaviorSanitizer,
+and leak detection. The workflow also builds a wheel and source distribution,
+installs the wheel into a new environment away from the source tree, and verifies
+the installed command.
+
+    python -m pip install build
+    python -m build
+    python scripts/check_wheel.py
+
+A passing test suite establishes the checked cases, not arbitrary-input safety,
+complete historical language compatibility, GPU execution, or formal proof.
+Inspect the workflow associated with the exact release commit for current
+results. See docs/RELEASE.md for promotion and rollback procedures.
 
 ---
 
@@ -587,7 +586,7 @@ A few things TRITON-SLED deliberately does **not** try to be.
 It is **not a drop-in replacement** for Ghidra's SLEIGH engine, the full UQBT/SSL
 toolchain, or a production Triton compiler. It implements documented, auditable
 subsets of those ideas, chosen so the whole pipeline stays comprehensible and
-every layer stays executable.
+the supported implementation stays reviewable.
 
 It is **not a syntax museum.** The historical languages it names are represented
 by real, working subsets, not by fabricated grammars assembled to look complete.
@@ -621,8 +620,7 @@ grant any administrative authority over a governed TRITON-SLED network. As
 [`GOVERNANCE.md`](GOVERNANCE.md) sets out, only **the Trust** may grant
 network-admin, node-admin, signing, admission/revocation, or governance-policy
 authority, every grant must carry a full authorization record and a valid
-signature, and the system is **fail-closed**: no valid grant means no authority,
-and invalid, expired, or revoked grants are rejected. Copyright in the code is
+signature, and the charter requires **fail-closed** authorization: no valid grant means no authority. This toolkit does not implement a network administration or grant-verification service. Copyright in the code is
 held by the Trust. Read the license and the governance charter together: one
 governs the code, the other governs the network.
 
@@ -636,6 +634,127 @@ TLA+ specification were integrated into a single tree, licensed under MPL-2.0,
 and organized as documented above.
 
 ---
+
+
+## Release installation and operations
+
+Download versioned assets from the GitHub Releases page. Platform ZIP names
+identify operating system and architecture; do not run a binary for a different
+architecture. The Python wheel is platform-independent and contains no compiled
+extension. Install it with python -m pip install followed by the wheel path.
+The source distribution contains the Python sources and development artifacts
+needed to rebuild the package and C demonstration.
+
+Each platform archive contains the executable, header, README, license,
+governance charter, and a manifest recording the Git commit and SHA-256 hashes.
+SHA256SUMS on the release records hashes of the downloadable assets. Compare
+downloaded hashes before installation: PowerShell provides Get-FileHash with
+-Algorithm SHA256; Linux provides sha256sum; macOS provides shasum -a 256.
+Checksums detect corruption or mismatch; they are not detached publisher signatures.
+
+Run --version after installation and retain the release tag and asset hash in
+your deployment record. Install into a new environment before replacing a
+working installation. For rollback, recreate the environment with the previous
+approved wheel or restore the previous platform archive. No database migrations,
+background service, network listener, or account credentials are required.
+
+The default tools operate on local files. Do not send secrets in example inputs
+or commit proprietary machine specifications unintentionally. Execution step
+budgets limit interpreter work but do not provide process isolation or an overall
+memory quota. Use an OS-level isolated process with resource limits when handling
+untrusted or exceptionally large inputs. The C file reader enforces a 1 MiB limit
+and rejects embedded NUL bytes; these checks do not turn it into a complete
+adversarial-input sandbox.
+
+### Migrating from the original flat checkout
+
+C consumers must change their include search path to include/. The C executable
+entry point is now csrc/triton_agent1_main.c. The original incomplete standalone
+C file is preserved byte-for-byte under archive/ as text and is excluded from
+compilation. Python consumers should install the distribution instead of
+importing a root-level folder. Import names remain triton_machine_semantics.
+
+Specification paths now begin with specs/sled/. The root build.sh delegates to
+scripts/build.sh. The root run_tests.py is the supported regression entry point;
+the old print-based smoke harness is preserved at examples/legacy_smoke.py as a
+historical artifact and is not a release gate.
+
+Behavior has intentionally tightened. Unknown execution operations raise errors.
+Numeric decoder fields are input literals; use explicit Varnode bindings when
+they identify output storage. Register addresses come from declarations, not
+process-dependent hashes. Unsupported GPU blocks appear in rejected results and
+cause the lower CLI to exit unsuccessfully. Consumers that previously accepted
+empty kernels or silently discarded instructions must handle these errors.
+
+### Execution model and error handling
+
+PcodeMachine executes a straight-line sequence in deterministic order. Values
+are read from byte-addressed register, unique, or RAM spaces, and constants are
+immediate values. Output writes wrap to the varnode width. Supported varnode
+widths are one through eight bytes. Signed division truncates toward zero, and
+division by zero fails. The broad opcode vocabulary in pcode.py is a data model;
+it is larger than the executable subset in pcode_engine.py. Branches, calls,
+floating-point operations, and SSA merge operations are not implemented there.
+
+Use the max_steps argument for interpreter budgets. A budget error, malformed
+varnode, unknown operation, or invalid memory-space access should terminate the
+current operation rather than be treated as a valid zero result. Forth definitions
+run through an iterative dispatcher, so recursive definitions consume the budget
+rather than the Python call stack. SUBLEQ validates memory addresses and halts
+when its program counter becomes negative.
+
+The SLEIGH decoder currently handles one token of one through 64 bits.
+Constraints on unknown fields cannot match. Truncated trailing instruction data
+raises an error. A .word fallback indicates undecoded data, not valid semantics;
+the semantic lowering rejects unknown instructions. These parsers are compact
+subsets and are not a replacement for a full SLEIGH grammar validator.
+
+### GPU source contract
+
+A supported block contains exactly one ADD, SUB, MUL, AND, OR, or XOR write on
+i32, with an array input and a decimal integer constant. Arithmetic is represented
+as 32-bit bit patterns with modulo wrapping. The output array must have capacity
+for n elements, and the input must provide at least n elements. Generated code
+does not allocate device memory, launch kernels, synchronize streams, or validate
+host-side pointer ownership. Those remain responsibilities of the caller.
+
+The Triton source takes x_ptr, y_ptr, n, and a compile-time BLOCK parameter.
+The PTX entry takes two 64-bit device pointers and a 32-bit element count.
+Both compute an element index, check bounds, load the input, apply the operation,
+and store the result. Launch configuration must cover the requested elements
+without overflowing 32-bit index arithmetic. Separate output storage is the
+recommended contract; arbitrary partially overlapping arrays are unsupported.
+
+Before deploying generated code on a GPU, assemble or compile it with the target
+toolchain and compare device output against a CPU reference across zero length,
+partial blocks, large values, negative constants, and overflow. Record GPU model,
+driver, compiler version, launch dimensions, and test seeds. Release CI checks
+source structure and Python syntax, not those device requirements. No benchmark
+or accelerator speedup is claimed.
+
+### Contributing and maintaining a release
+
+Keep semantic fixes separate from layout-only changes where practical. Add a
+regression case that would fail before the fix, and make the expected bit width,
+endianness, and error behavior explicit. Preserve license headers and author
+attribution. New frontend operations must either have defined lowering semantics
+or remain visibly unsupported; a NOP is not an acceptable placeholder for an
+operation with effects.
+
+Before a release, check a clean source checkout, all matrix jobs, sanitizer
+results, and isolated wheel installation. Publish artifacts from the same commit
+as the release tag. Never retarget a published tag to different code. If a defect
+is discovered, publish a corrected version and identify the affected behavior
+in the changelog. See CHANGELOG.md and docs/RELEASE.md.
+
+### Primary technical references
+
+- [Ghidra SLEIGH reference](https://ghidra.re/ghidra_docs/languages/html/sleigh_ref.html)
+- [Ghidra P-code operation reference](https://ghidra.re/ghidra_docs/languages/html/pcodedescription.html)
+- [NVIDIA PTX ISA reference](https://docs.nvidia.com/cuda/archive/12.2.1/parallel-thread-execution/)
+
+These references describe the source models and target instruction language.
+They do not certify compatibility or verification of this implementation.
 
 ## Authors
 

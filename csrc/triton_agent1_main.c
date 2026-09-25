@@ -31,7 +31,8 @@ static const char *read_file(const char *path)
 
     long size = ftell(f);
 
-    if (size < 0) {
+    if (size < 0 || size > 1048576) {
+        fprintf(stderr, "source size must be at most 1 MiB\n");
         fclose(f);
         return NULL;
     }
@@ -46,6 +47,10 @@ static const char *read_file(const char *path)
         (size_t)size,
         f);
 
+    if (n != (size_t)size || ferror(f) || memchr(buffer, '\0', n)) {
+        fprintf(stderr, "cannot read source or source contains NUL bytes\n");
+        fclose(f); free(buffer); return NULL;
+    }
     fclose(f);
 
     buffer[n] = '\0';
@@ -129,7 +134,7 @@ static int compile_file(
     (void)c;
 
     printf(
-        "TRITON AGENT 1\n"
+        "TRITON AGENT 1 - lexical validation + fixed IR demonstration\n"
         "language=%d\n"
         "source=%s\n\n",
         (int)language,
@@ -139,6 +144,7 @@ static int compile_file(
         &module,
         stdout);
 
+    ir_free(&module);
     token_vector_free(&tokens);
     ta_diag_free(&diagnostics);
     free((void *)source);
@@ -148,6 +154,10 @@ static int compile_file(
 
 int main(int argc, char **argv)
 {
+    if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+        puts("triton-agent1 0.2.0");
+        return EXIT_SUCCESS;
+    }
     if (argc != 3) {
         fprintf(
             stderr,

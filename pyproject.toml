@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MPL-2.0
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "triton-machine-semantics"
+version = "0.2.0"
+description = "Bounded machine-semantics tools and conservative elementwise kernel emission"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MPL-2.0"
+license-files = ["LICENSE", "GOVERNANCE.md"]
+authors = [{name = "BEL ESPRIT D'ACCORD Trust"}]
+dependencies = []
+[project.urls]
+Repository = "https://github.com/SNAPKITTYWEST/triton_agent1"
+Issues = "https://github.com/SNAPKITTYWEST/triton_agent1/issues"
+[project.scripts]
+triton-semantics = "triton_machine_semantics.cli:main"
+[tool.setuptools.packages.find]
+where = ["src"]
