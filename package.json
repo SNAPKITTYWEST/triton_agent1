@@ -1,0 +1,56 @@
+{
+  "name": "triton-machine-semantics",
+  "version": "0.2.0",
+  "description": "Node CLI bridge for the TRITON-SLED Python machine-semantics toolkit; Python installation required",
+  "type": "module",
+  "bin": {
+    "triton-semantics-node": "npm/cli.mjs"
+  },
+  "files": [
+    "npm/",
+    "LICENSE",
+    "GOVERNANCE.md",
+    "CONTRIBUTORS.md",
+    "README.md",
+    "docs/COMMERCIAL.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MPL-2.0",
+  "author": {
+    "name": "BEL ESPRIT D'ACCORD",
+    "email": "a.parr@belespritdaccord.uk"
+  },
+  "contributors": [
+    {
+      "name": "Ahmad Ali Parr",
+      "email": "ahmedparr@icloud.com"
+    },
+    {
+      "name": "SNAPKITTYWEST",
+      "email": "ahmedparr93@gmail.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SNAPKITTYWEST/triton_agent1.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SNAPKITTYWEST/triton_agent1/issues"
+  },
+  "homepage": "https://github.com/SNAPKITTYWEST/triton_agent1#readme",
+  "keywords": [
+    "machine-semantics",
+    "sleigh",
+    "pcode",
+    "copyleft"
+  ],
+  "scripts": {
+    "test": "node --test tests/npm-cli.test.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

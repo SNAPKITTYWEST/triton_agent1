@@ -785,3 +785,16 @@ They do not certify compatibility or verification of this implementation.
 <sub>© 2026 the Trust · Licensed under MPL-2.0 · Network authority governed separately, see GOVERNANCE.md</sub>
 
 </div>
+
+## Commercial distribution and support
+
+Commercial enquiries: [a.parr@belespritdaccord.uk](mailto:a.parr@belespritdaccord.uk).
+See [commercial use and package documentation](docs/COMMERCIAL.md) for licensing,
+installation requirements, and the distinction between the Python implementation
+and the npm CLI bridge. Covered files retain MPL-2.0 notices and the separate
+Trust governance charter.
+
+The npm bridge is packaged as triton-machine-semantics and runs the installed
+Python toolkit through triton-semantics-node. It requires a separate Python
+installation and does not install or download dependencies automatically.
+Registry availability must be verified before using a registry install command.

@@ -9,3 +9,7 @@ recursive-include docs *.md
 recursive-include assets *.svg
 
 include CONTRIBUTORS.md CHANGELOG.md
+
+include package.json
+recursive-include npm *.mjs
+recursive-include tests *.mjs

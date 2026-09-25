@@ -8,3 +8,6 @@ artifacts/
 *.exe
 *.o
 *.cubin
+
+node_modules/
+*.tgz
