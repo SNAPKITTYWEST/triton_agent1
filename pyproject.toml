@@ -21,7 +21,7 @@ dependencies = []
 [project.urls]
 Documentation = "https://github.com/SNAPKITTYWEST/triton_agent1#readme"
 Releases = "https://github.com/SNAPKITTYWEST/triton_agent1/releases"
-Contact = "mailto:a.parr@belespritdaccord.uk"
+Contact = "https://github.com/SNAPKITTYWEST/triton_agent1/blob/main/CONTRIBUTORS.md"
 Repository = "https://github.com/SNAPKITTYWEST/triton_agent1"
 Issues = "https://github.com/SNAPKITTYWEST/triton_agent1/issues"
 [project.scripts]
